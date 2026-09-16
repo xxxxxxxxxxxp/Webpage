@@ -1626,7 +1626,7 @@
     }
     async function verifyAdminPasscode(passcode) {
       const { data, error } = await openfieldSupabase.rpc(
-        'verify_admin_passcode',
+        'unlock_admin_access',
         { passcode }
       );
       if (error) {
