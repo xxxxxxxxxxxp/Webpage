@@ -1388,7 +1388,7 @@
     for (const c of courses) { const p = state.courses[c.id]; if (p) { p.weeks = Array.from({ length: c.weeks.length }, (_, i) => p.weeks?.[i] === true); p.final = p.final === true && p.weeks.every(Boolean) } }
     let schoolFilter = 'all';
     const app = document.getElementById('app');
-    function persist() { try { const localState = Object.fromEntries(Object.entries(state).filter(([property]) => !['addedCourses', 'books', 'syllabus', 'graduationRequirements', 'courses', 'courseYears'].includes(property))); const submissions = { ...(localState.submissions || {}) }; delete submissions.finals; localState.submissions = submissions; const value = { ...saved, ...localState }; delete value.courses; delete value.courseYears; if (value.submissions) delete value.submissions.finals; localStorage.setItem(key, JSON.stringify(value)); return true } catch (e) { storageAvailable = false; toast('Browser storage is unavailable. Progress will last for this session only.'); return false } }
+    function persist() { try { const localState = Object.fromEntries(Object.entries(state).filter(([property]) => !['addedCourses', 'books', 'syllabus', 'graduationRequirements', 'courses', 'courseYears'].includes(property))); const submissions = { ...(localState.submissions || {}) }; delete submissions.finals; delete submissions.reviews; localState.submissions = submissions; const value = { ...saved, ...localState }; delete value.courses; delete value.courseYears; if (value.submissions) { delete value.submissions.finals; delete value.submissions.reviews; } localStorage.setItem(key, JSON.stringify(value)); return true } catch (e) { storageAvailable = false; toast('Browser storage is unavailable. Progress will last for this session only.'); return false } }
     // Legacy local catalogue values are retained in storage only; persist() writes learner state.
     function toast(message) { document.getElementById('toast').textContent = message; clearTimeout(window.toastTimer); window.toastTimer = setTimeout(() => document.getElementById('toast').textContent = '', 4500) }
     function progress(c) { return state.courses[c.id] || { weeks: c.weeks.map(() => false), final: false } }
@@ -2153,6 +2153,139 @@
     applyAuthenticatedProfile = function (user, profile) {
       if (studentCourseProgress.userId !== user.id) clearStudentCourseProgress();
       applyProfileBeforeCourseProgress(user, profile);
+    };
+    /* Reading reviews are per-student Supabase records; state.submissions.reviews is render-only compatibility data. */
+    const readingReviewState = { userId: null, ready: false, pending: null, error: null, adminScope: false, allForAdmin: [], profileNames: {} };
+    function clearReadingReviews() {
+      state.submissions = state.submissions || {};
+      state.submissions.reviews = {};
+      readingReviewState.ready = false;
+      readingReviewState.error = null;
+      readingReviewState.adminScope = false;
+      readingReviewState.allForAdmin = [];
+      readingReviewState.profileNames = {};
+    }
+    function reviewCache(rows) {
+      return Object.fromEntries((rows || []).map(row => [row.book_id, { id: row.id, submissionId: row.submission_id, studentId: row.student_id,
+        review: row.review_link || '', review_link: row.review_link || '', review_text: row.review_text || '', storage_path: row.storage_path || '',
+        original_file_name: row.original_file_name || '', completedAt: row.completed_at, year: row.academic_year || studentYear() }]));
+    }
+    async function loadReadingReviews(force = false) {
+      const userId = authState.user?.id;
+      if (!userId || !catalogue.ready || catalogue.userId !== userId) throw new Error('Book reviews cannot load before authentication and catalogue loading.');
+      if (readingReviewState.userId === userId && readingReviewState.pending) return readingReviewState.pending;
+      if (readingReviewState.userId === userId && readingReviewState.ready && readingReviewState.adminScope === (state.role === 'admin') && !force) return;
+      readingReviewState.userId = userId; readingReviewState.ready = false; readingReviewState.error = null;
+      state.submissions = state.submissions || {}; state.submissions.reviews = {};
+      const request = (async () => {
+        const query = state.role === 'admin'
+          ? openfieldSupabase.from('book_reviews').select('id,submission_id,student_id,book_id,review_text,review_link,storage_path,original_file_name,completed_at')
+          : openfieldSupabase.from('book_reviews').select('id,submission_id,student_id,book_id,review_text,review_link,storage_path,original_file_name,completed_at').eq('student_id', userId);
+        const { data, error } = await query;
+        if (error) throw error;
+        if (authState.user?.id !== userId) return;
+        const rows = data || [];
+        readingReviewState.adminScope = state.role === 'admin';
+        readingReviewState.allForAdmin = state.role === 'admin' ? rows : [];
+        readingReviewState.profileNames = {};
+        const studentIds = [...new Set(rows.map(row => row.student_id))];
+        if (state.role === 'admin' && studentIds.length) {
+          const { data: profiles, error: profileError } = await openfieldSupabase.from('profiles').select('id,display_name').in('id', studentIds);
+          if (profileError) console.error('[Reading reviews] Could not load reviewer profiles:', profileError);
+          else readingReviewState.profileNames = Object.fromEntries((profiles || []).map(profile => [profile.id, profile.display_name || profile.id]));
+        }
+        // The legacy grading route is keyed by book ID; retain one admin-visible cache entry per book for that compatibility path.
+        state.submissions.reviews = reviewCache(rows);
+        readingReviewState.ready = true;
+      })().catch(error => { if (readingReviewState.userId === userId) readingReviewState.error = error; throw error; })
+        .finally(() => { if (readingReviewState.pending === request) readingReviewState.pending = null; });
+      readingReviewState.pending = request;
+      return request;
+    }
+    async function saveBookReview(bookId, values) {
+      const userId = authState.user?.id;
+      if (!userId) throw new Error('Sign in to submit a book review.');
+      const book = state.books.find(item => item.id === bookId);
+      if (!book) throw new Error('This book is no longer available.');
+      const reviewLink = String(values.review || '').trim();
+      if (!reviewLink) throw new Error('Add your book review link.');
+      const existing = state.submissions.reviews?.[bookId];
+      if (existing?.id) {
+        const { data, error } = await openfieldSupabase.from('book_reviews').update({ review_link: reviewLink }).eq('id', existing.id).eq('student_id', userId)
+          .select('id,submission_id,student_id,book_id,review_text,review_link,storage_path,original_file_name,completed_at').single();
+        if (error) throw error;
+        state.submissions.reviews[bookId] = reviewCache([data])[bookId];
+        return;
+      }
+      const academicYear = Number(studentYear());
+      if (!Number.isInteger(academicYear) || academicYear < 1 || academicYear > 4) throw new Error('Your current academic year is not valid for a review submission.');
+      const { data: submission, error: submissionError } = await openfieldSupabase.from('submissions').insert({ student_id: userId, submission_type: 'book_review', academic_year: academicYear, status: 'submitted', submitted_at: new Date().toISOString() }).select('id').single();
+      if (submissionError) throw submissionError;
+      const { data: review, error: reviewError } = await openfieldSupabase.from('book_reviews').insert({ submission_id: submission.id, student_id: userId, book_id: book.id, review_link: reviewLink })
+        .select('id,submission_id,student_id,book_id,review_text,review_link,storage_path,original_file_name,completed_at').single();
+      if (reviewError) {
+        const { error: cleanupError } = await openfieldSupabase.from('submissions').delete().eq('id', submission.id).eq('student_id', userId);
+        if (cleanupError) console.error('[Reading reviews] Could not clean up parent submission after child insert failure:', cleanupError);
+        throw reviewError;
+      }
+      state.submissions.reviews[bookId] = reviewCache([review])[bookId];
+    }
+    function studentBookPage(id) {
+      const book = state.books.find(item => item.id === id);
+      if (!book) return heading('Not found', 'Book not found.', 'Choose a book from the Reading Programme.');
+      const levels = readingLevelsData.map(level => state.books.filter(item => Number(item.level) === Number(level.level_number)));
+      const levelIndex = levels.findIndex(items => items.some(item => item.id === id));
+      const unlocked = levelIndex === 0 || (levelIndex > 0 && levels[levelIndex - 1].length > 0 && levels[levelIndex - 1].every(item => state.submissions.reviews?.[item.id]));
+      if (!unlocked) return '<a class="back" href="#reading">← Back to Reading Programme</a>' + heading('Reading Programme', 'This level is locked.', 'Complete every book in the preceding level to unlock this review.');
+      const review = state.submissions.reviews?.[id];
+      const submitted = review ? '<div class="submission"><div class="eyebrow">Submitted ✓</div>' +
+        (review.review_link ? '<p><a href="' + esc(review.review_link) + '" target="_blank" rel="noreferrer">Open review link ↗</a></p>' : '') +
+        (review.review_text ? '<p class="sub">' + esc(review.review_text) + '</p>' : '') + '</div>' : '';
+      return '<a class="back" href="#reading">← Back to Reading Programme</a>' + heading('Reading Programme', book.title, (book.author || 'Reading selection') + ' · Level ' + book.level) +
+        '<section class="panel"><div class="eyebrow">Book review</div><h2>' + esc(book.title) + '</h2><p class="sub">Submit a link to your review. A submitted review completes this book for your Reading Programme.</p>' + submitted +
+        '<form data-form="review" data-book="' + book.id + '" class="stack"><div class="field"><label for="review-text">Book review link</label><input id="review-text" name="review" type="url" placeholder="https://" required value="' + esc(review?.review_link || '') + '"></div><button class="btn" type="submit">' + (review ? 'Update review' : 'Submit book review') + ' ↗</button></form></section>' + gradeSummary(gradeRef('review', id));
+    }
+    function adminReadingReviews() {
+      const reviewCards = readingReviewState.allForAdmin.map(review => {
+        const book = state.books.find(item => item.id === review.book_id);
+        if (!book) return '';
+        return '<section class="panel admin-panel"><div class="eyebrow">Submitted review</div><h3>' + esc(book.title) + '</h3><p class="sub">Student: ' + esc(readingReviewState.profileNames[review.student_id] || review.student_id) + ' · Submitted: ' + esc(new Date(review.completed_at).toLocaleDateString()) + '</p>' +
+          (review.review_link ? '<p><a href="' + esc(review.review_link) + '" target="_blank" rel="noreferrer">Open review link ↗</a></p>' : '') + (review.review_text ? '<p>' + esc(review.review_text) + '</p>' : '') +
+          '<div class="admin-actions"><a class="btn outline" href="#grade/review|' + book.id + '">Grade review</a></div></section>';
+      }).join('');
+      return heading('Administrator · Reading programme', 'Curate books and review submissions.', 'Manage the seven reading levels and inspect submitted reviews.') + readingLevels(true) + '<div class="section-head"><h2>Submitted reviews</h2></div><div class="stack">' + (reviewCards || '<p class="sub">No submitted reviews yet.</p>') + '</div>';
+    }
+    const bookPageBeforeSupabaseReviews = bookPage;
+    bookPage = function (id) { return state.role === 'admin' ? bookPageBeforeSupabaseReviews(id) : studentBookPage(id); };
+    const adminReadingBeforeSupabaseReviews = adminReading;
+    adminReading = function () { return state.role === 'admin' ? adminReadingReviews() : adminReadingBeforeSupabaseReviews(); };
+    document.addEventListener('submit', e => {
+      const form = e.target.closest('form[data-form="review"]');
+      if (!form) return;
+      e.preventDefault(); e.stopImmediatePropagation();
+      saveBookReview(form.dataset.book, Object.fromEntries(new FormData(form))).then(() => { location.hash = 'reading'; render(); toast('Book review submitted. The book is complete.'); })
+        .catch(error => { console.error('[Reading reviews] Save failed:', error); toast('Book review could not be saved: ' + (error.message || 'please try again.')); });
+    }, true);
+    document.addEventListener('click', e => {
+      const title = e.target.closest('.book-card h3');
+      if (!title || state.role === 'admin') return;
+      const link = title.closest('.book-card')?.querySelector('a[href^="#book/"]');
+      if (!link) return;
+      e.preventDefault(); location.hash = link.getAttribute('href');
+    }, true);
+    const renderBeforeReadingReviews = render;
+    render = function () {
+      if (authState.user && catalogue.ready && catalogue.userId === authState.user.id && (!readingReviewState.ready || readingReviewState.userId !== authState.user.id || readingReviewState.adminScope !== (state.role === 'admin'))) {
+        app.innerHTML = '<section class="panel"><h2>Loading your Reading Programme</h2><p class="sub">Loading your completed book reviews…</p></section>';
+        if (!readingReviewState.pending) loadReadingReviews().then(() => render()).catch(error => { console.error('[Reading reviews] Load failed:', error); app.innerHTML = '<section class="panel"><h2>Reading Programme unavailable</h2><p class="sub">' + esc(error.message || 'Please refresh and try again.') + '</p></section>'; });
+        return;
+      }
+      renderBeforeReadingReviews();
+    };
+    const applyProfileBeforeReadingReviews = applyAuthenticatedProfile;
+    applyAuthenticatedProfile = function (user, profile) {
+      if (readingReviewState.userId !== user.id) clearReadingReviews();
+      applyProfileBeforeReadingReviews(user, profile);
     };
     restoreSupabaseSession();
   </script>
