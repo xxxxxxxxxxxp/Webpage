@@ -1742,6 +1742,27 @@
       });
       return { schools: newSchools, clubs: newClubs, courses: newCourses, levels, books, rubrics, requirements };
     }
+    async function initialiseReadingLevelsIfEmpty(rows) {
+      const existing = rows.reading_levels || [];
+      if (existing.length) {
+        const numbers = existing.map(row => Number(row.level_number)).sort((a, b) => a - b);
+        if (numbers.length !== 7 || numbers.some((number, index) => number !== index + 1))
+          throw new Error('Reading levels are incomplete: found level numbers ' + (numbers.join(', ') || 'none') + '. No automatic repair was performed.');
+        return existing;
+      }
+      if (!authState.adminUnlocked) return existing;
+      const seed = Array.from({ length: 7 }, (_, index) => ({ level_number: index + 1 }));
+      const { error } = await openfieldSupabase.from('reading_levels').insert(seed);
+      if (error) {
+        console.error('[Catalogue] Reading level initialization failed:', error);
+        throw error;
+      }
+      const reloaded = await readCatalogueTable('reading_levels');
+      const numbers = reloaded.map(row => Number(row.level_number)).sort((a, b) => a - b);
+      if (numbers.length !== 7 || numbers.some((number, index) => number !== index + 1))
+        throw new Error('Reading level initialization returned an unexpected set of levels: ' + (numbers.join(', ') || 'none') + '.');
+      return reloaded;
+    }
     function loadGlobalCatalogue(force = false) {
       const userId = authState.user?.id;
       if (!userId) return Promise.reject(new Error('Sign in before loading the catalogue.'));
@@ -1753,6 +1774,7 @@
         const failed = results.find(result => result.status === 'rejected');
         if (failed) throw failed.reason;
         const rows = Object.fromEntries(catalogueTables.map((table, index) => [table, results[index].value]));
+        rows.reading_levels = await initialiseReadingLevelsIfEmpty(rows);
         const adapted = adaptCatalogue(rows);
         if (authState.user?.id !== userId || catalogue.userId !== userId) return;
         schools = adapted.schools; clubs = adapted.clubs; courses = adapted.courses;
