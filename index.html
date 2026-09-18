@@ -1373,7 +1373,8 @@
     // No local or hardcoded catalogue is used before the authenticated Supabase load.
     schools = []; courses = [];
     clubs = [];
-    let state = { courses: saved.courses && typeof saved.courses === 'object' ? saved.courses : {}, clubs: Array.isArray(saved.clubs) ? saved.clubs.slice() : [], role: saved.role === 'admin' ? 'admin' : 'student', currentYear: Number(saved.currentYear || saved.studentYear || saved.year || 1), addedCourses: [], books: [], research: Array.isArray(saved.research) ? saved.research : [], submissions: saved.submissions && typeof saved.submissions === 'object' ? saved.submissions : {}, syllabus: {}, attendance: saved.attendance && typeof saved.attendance === 'object' ? saved.attendance : {}, attendanceDays: saved.attendanceDays && typeof saved.attendanceDays === 'object' ? saved.attendanceDays : {}, clubMemberships: saved.clubMemberships && typeof saved.clubMemberships === 'object' ? saved.clubMemberships : {}, clubCommitmentSubmissions: saved.clubCommitmentSubmissions && typeof saved.clubCommitmentSubmissions === 'object' ? saved.clubCommitmentSubmissions : {} };
+    // Course enrolment/progress is authenticated Supabase data. Never hydrate it from shared browser storage.
+    let state = { courses: {}, clubs: Array.isArray(saved.clubs) ? saved.clubs.slice() : [], role: saved.role === 'admin' ? 'admin' : 'student', currentYear: Number(saved.currentYear || saved.studentYear || saved.year || 1), addedCourses: [], books: [], research: Array.isArray(saved.research) ? saved.research : [], submissions: saved.submissions && typeof saved.submissions === 'object' ? saved.submissions : {}, syllabus: {}, attendance: saved.attendance && typeof saved.attendance === 'object' ? saved.attendance : {}, attendanceDays: saved.attendanceDays && typeof saved.attendanceDays === 'object' ? saved.attendanceDays : {}, clubMemberships: saved.clubMemberships && typeof saved.clubMemberships === 'object' ? saved.clubMemberships : {}, clubCommitmentSubmissions: saved.clubCommitmentSubmissions && typeof saved.clubCommitmentSubmissions === 'object' ? saved.clubCommitmentSubmissions : {} };
     state.graduationRequirements = {}; // Loaded from Supabase, never filled from local defaults.
     for (const requirement of Object.values(state.graduationRequirements)) { if (!Number.isFinite(Number(requirement.minimumAverageGrade))) requirement.minimumAverageGrade = 70 }
     state.grades = saved.grades && typeof saved.grades === 'object' ? saved.grades : {};
@@ -1387,7 +1388,7 @@
     for (const c of courses) { const p = state.courses[c.id]; if (p) { p.weeks = Array.from({ length: c.weeks.length }, (_, i) => p.weeks?.[i] === true); p.final = p.final === true && p.weeks.every(Boolean) } }
     let schoolFilter = 'all';
     const app = document.getElementById('app');
-    function persist() { try { localStorage.setItem(key, JSON.stringify({ ...saved, ...Object.fromEntries(Object.entries(state).filter(([property]) => !['addedCourses', 'books', 'syllabus', 'graduationRequirements'].includes(property))) })); return true } catch (e) { storageAvailable = false; toast('Browser storage is unavailable. Progress will last for this session only.'); return false } }
+    function persist() { try { const localState = Object.fromEntries(Object.entries(state).filter(([property]) => !['addedCourses', 'books', 'syllabus', 'graduationRequirements', 'courses', 'courseYears'].includes(property))); const submissions = { ...(localState.submissions || {}) }; delete submissions.finals; localState.submissions = submissions; const value = { ...saved, ...localState }; delete value.courses; delete value.courseYears; if (value.submissions) delete value.submissions.finals; localStorage.setItem(key, JSON.stringify(value)); return true } catch (e) { storageAvailable = false; toast('Browser storage is unavailable. Progress will last for this session only.'); return false } }
     // Legacy local catalogue values are retained in storage only; persist() writes learner state.
     function toast(message) { document.getElementById('toast').textContent = message; clearTimeout(window.toastTimer); window.toastTimer = setTimeout(() => document.getElementById('toast').textContent = '', 4500) }
     function progress(c) { return state.courses[c.id] || { weeks: c.weeks.map(() => false), final: false } }
@@ -2006,6 +2007,153 @@
       }).join('') + '</div>';
     };
 
+    /* Authenticated course progress. The catalogue supplies course UUIDs; enrolments own all learner state. */
+    const studentCourseProgress = { userId: null, ready: false, pending: null, error: null };
+    function clearStudentCourseProgress() {
+      state.courses = {};
+      state.courseYears = {};
+      if (state.submissions?.finals) delete state.submissions.finals;
+      studentCourseProgress.ready = false;
+      studentCourseProgress.error = null;
+    }
+    async function loadStudentCourseProgress(force = false) {
+      const userId = authState.user?.id;
+      if (!userId || !catalogue.ready || catalogue.userId !== userId) throw new Error('Course progress cannot load before authentication and catalogue loading.');
+      if (studentCourseProgress.userId === userId && studentCourseProgress.pending) return studentCourseProgress.pending;
+      if (studentCourseProgress.userId === userId && studentCourseProgress.ready && !force) return;
+      studentCourseProgress.userId = userId;
+      studentCourseProgress.ready = false;
+      studentCourseProgress.error = null;
+      state.courses = {};
+      state.courseYears = {};
+      const request = (async () => {
+        const { data: enrollments, error: enrollmentError } = await openfieldSupabase.from('course_enrollments')
+          .select('id,course_id,academic_year,final_completed,completed_at').eq('student_id', userId);
+        if (enrollmentError) throw enrollmentError;
+        if (authState.user?.id !== userId) return;
+        const ids = (enrollments || []).map(row => row.id);
+        let weeks = [];
+        if (ids.length) {
+          const { data, error } = await openfieldSupabase.from('course_week_progress').select('enrollment_id,week_number').in('enrollment_id', ids);
+          if (error) throw error;
+          weeks = data || [];
+        }
+        if (authState.user?.id !== userId) return;
+        const weeksByEnrollment = new Map();
+        weeks.forEach(row => {
+          const set = weeksByEnrollment.get(row.enrollment_id) || new Set();
+          set.add(Number(row.week_number)); weeksByEnrollment.set(row.enrollment_id, set);
+        });
+        const next = {}, years = {};
+        (enrollments || []).forEach(enrollment => {
+          const course = courses.find(item => item.id === enrollment.course_id);
+          if (!course) return; // Retain no fake progress for unavailable catalogue records.
+          const done = weeksByEnrollment.get(enrollment.id) || new Set();
+          next[course.id] = { enrollmentId: enrollment.id, weeks: course.weeks.map((_, index) => done.has(index + 1)), final: enrollment.final_completed === true };
+          years[course.id] = Number(enrollment.academic_year);
+        });
+        state.courses = next;
+        state.courseYears = years;
+        studentCourseProgress.ready = true;
+      })().catch(error => {
+        if (studentCourseProgress.userId === userId) studentCourseProgress.error = error;
+        throw error;
+      }).finally(() => { if (studentCourseProgress.pending === request) studentCourseProgress.pending = null; });
+      studentCourseProgress.pending = request;
+      return request;
+    }
+    function requireCourseEnrollment(courseId) {
+      if (!authState.user) throw new Error('Sign in to update course progress.');
+      const record = state.courses[courseId];
+      if (!record?.enrollmentId) throw new Error('You are not enrolled in this course.');
+      return record;
+    }
+    async function enrolCourse(courseId) {
+      if (!authState.user) throw new Error('Sign in to enrol.');
+      const course = courses.find(item => item.id === courseId);
+      if (!course) throw new Error('This course is no longer available.');
+      const { data, error } = await openfieldSupabase.from('course_enrollments').upsert({ student_id: authState.user.id, course_id: course.id, academic_year: studentYear() }, { onConflict: 'student_id,course_id' }).select('id,course_id,academic_year,final_completed').single();
+      if (error) throw error;
+      if (authState.user.id !== studentCourseProgress.userId) return;
+      state.courses[course.id] = { enrollmentId: data.id, weeks: course.weeks.map(() => false), final: data.final_completed === true };
+      state.courseYears[course.id] = Number(data.academic_year);
+    }
+    async function unenrolCourse(courseId) {
+      const record = requireCourseEnrollment(courseId);
+      const { error } = await openfieldSupabase.from('course_enrollments').delete().eq('id', record.enrollmentId).eq('student_id', authState.user.id);
+      if (error) throw error;
+      delete state.courses[courseId]; delete state.courseYears[courseId];
+    }
+    async function setCourseWeek(courseId, index, checked) {
+      const record = requireCourseEnrollment(courseId), weekNumber = index + 1;
+      const query = checked
+        ? openfieldSupabase.from('course_week_progress').upsert({ enrollment_id: record.enrollmentId, week_number: weekNumber }, { onConflict: 'enrollment_id,week_number' })
+        : openfieldSupabase.from('course_week_progress').delete().eq('enrollment_id', record.enrollmentId).eq('week_number', weekNumber);
+      const { error } = await query;
+      if (error) throw error;
+      record.weeks[index] = checked;
+      if (!checked && record.final) {
+        const { error: finalError } = await openfieldSupabase.from('course_enrollments').update({ final_completed: false, completed_at: null }).eq('id', record.enrollmentId).eq('student_id', authState.user.id);
+        if (finalError) { record.weeks[index] = !checked; throw finalError; }
+        record.final = false;
+      }
+    }
+    async function completeCourseFinal(courseId) {
+      const record = requireCourseEnrollment(courseId);
+      if (!record.weeks.every(Boolean)) throw new Error('Complete every course week before submitting the final task.');
+      const { error } = await openfieldSupabase.from('course_enrollments').update({ final_completed: true, completed_at: new Date().toISOString() }).eq('id', record.enrollmentId).eq('student_id', authState.user.id);
+      if (error) throw error;
+      record.final = true;
+    }
+    // Capture phase prevents legacy browser-local course handlers from running.
+    document.addEventListener('click', e => {
+      const enrol = e.target.closest('[data-enrol]'), unenrol = e.target.closest('[data-unenrol]');
+      if (!enrol && !unenrol) return;
+      e.preventDefault(); e.stopImmediatePropagation();
+      const courseId = enrol ? enrol.dataset.enrol : unenrol.dataset.unenrol;
+      (enrol ? enrolCourse(courseId) : unenrolCourse(courseId)).then(() => { render(); toast(enrol ? 'You’re enrolled. Your first week is ready.' : 'You have unenrolled from this course.'); }).catch(error => { console.error('[Course progress]', error); toast('Course update failed: ' + (error.message || 'please try again.')); });
+    }, true);
+    document.addEventListener('change', e => {
+      const week = e.target.closest('[data-week]');
+      const final = e.target.closest('[data-final]');
+      if (week) {
+        e.stopImmediatePropagation();
+        const wasChecked = !week.checked; week.disabled = true;
+        setCourseWeek(week.dataset.course, Number(week.dataset.week), week.checked).then(() => render()).catch(error => { console.error('[Course progress]', error); week.checked = wasChecked; week.disabled = false; toast('Week progress could not be saved: ' + (error.message || 'please try again.')); });
+      }
+      if (final) {
+        e.stopImmediatePropagation();
+        const record = state.courses[final.dataset.final];
+        if (!record || !record.weeks.every(Boolean)) { final.checked = false; return; }
+        const completed = final.checked;
+        openfieldSupabase.from('course_enrollments').update({ final_completed: completed, completed_at: completed ? new Date().toISOString() : null }).eq('id', record.enrollmentId).eq('student_id', authState.user?.id).then(({ error }) => {
+          if (error) throw error;
+          record.final = completed; render(); toast(completed ? 'Course completed!' : 'Final completion removed.');
+        }).catch(error => { console.error('[Course progress]', error); final.checked = !completed; toast('Final completion could not be saved: ' + (error.message || 'please try again.')); });
+      }
+    }, true);
+    document.addEventListener('submit', e => {
+      const form = e.target.closest('form[data-form="final"]');
+      if (!form) return;
+      e.preventDefault(); e.stopImmediatePropagation();
+      const data = new FormData(form), link = String(data.get('link') || '').trim(), file = data.get('file')?.name || '';
+      if (!link && !file) { toast('Add a project link or attach a file.'); return; }
+      completeCourseFinal(form.dataset.course).then(() => { location.hash = 'course/' + form.dataset.course; render(); toast('Final work submitted.'); }).catch(error => { console.error('[Course progress]', error); toast('Final submission could not be completed: ' + (error.message || 'please try again.')); });
+    }, true);
+    const renderBeforeStudentCourseProgress = render;
+    render = function () {
+      if (authState.user && catalogue.ready && catalogue.userId === authState.user.id && (!studentCourseProgress.ready || studentCourseProgress.userId !== authState.user.id)) {
+        app.innerHTML = '<section class="panel"><h2>Loading your course progress</h2><p class="sub">Loading your enrolled courses and completed weeks…</p></section>';
+        if (!studentCourseProgress.pending) loadStudentCourseProgress().then(() => render()).catch(error => { console.error('[Course progress] Load failed:', error); app.innerHTML = '<section class="panel"><h2>Course progress unavailable</h2><p class="sub">' + esc(error.message || 'Please refresh and try again.') + '</p></section>'; });
+        return;
+      }
+      renderBeforeStudentCourseProgress();
+    };
+    const applyProfileBeforeCourseProgress = applyAuthenticatedProfile;
+    applyAuthenticatedProfile = function (user, profile) {
+      if (studentCourseProgress.userId !== user.id) clearStudentCourseProgress();
+      applyProfileBeforeCourseProgress(user, profile);
+    };
     restoreSupabaseSession();
   </script>
 </body>
