@@ -1374,7 +1374,7 @@
     schools = []; courses = [];
     clubs = [];
     // Course enrolment/progress is authenticated Supabase data. Never hydrate it from shared browser storage.
-    let state = { courses: {}, clubs: Array.isArray(saved.clubs) ? saved.clubs.slice() : [], role: saved.role === 'admin' ? 'admin' : 'student', currentYear: Number(saved.currentYear || saved.studentYear || saved.year || 1), addedCourses: [], books: [], research: Array.isArray(saved.research) ? saved.research : [], submissions: saved.submissions && typeof saved.submissions === 'object' ? saved.submissions : {}, syllabus: {}, attendance: saved.attendance && typeof saved.attendance === 'object' ? saved.attendance : {}, attendanceDays: saved.attendanceDays && typeof saved.attendanceDays === 'object' ? saved.attendanceDays : {}, clubMemberships: saved.clubMemberships && typeof saved.clubMemberships === 'object' ? saved.clubMemberships : {}, clubCommitmentSubmissions: saved.clubCommitmentSubmissions && typeof saved.clubCommitmentSubmissions === 'object' ? saved.clubCommitmentSubmissions : {} };
+    let state = { courses: {}, clubs: Array.isArray(saved.clubs) ? saved.clubs.slice() : [], role: saved.role === 'admin' ? 'admin' : 'student', currentYear: Number(saved.currentYear || saved.studentYear || saved.year || 1), addedCourses: [], books: [], research: [], submissions: saved.submissions && typeof saved.submissions === 'object' ? saved.submissions : {}, syllabus: {}, attendance: saved.attendance && typeof saved.attendance === 'object' ? saved.attendance : {}, attendanceDays: saved.attendanceDays && typeof saved.attendanceDays === 'object' ? saved.attendanceDays : {}, clubMemberships: saved.clubMemberships && typeof saved.clubMemberships === 'object' ? saved.clubMemberships : {}, clubCommitmentSubmissions: saved.clubCommitmentSubmissions && typeof saved.clubCommitmentSubmissions === 'object' ? saved.clubCommitmentSubmissions : {} };
     state.graduationRequirements = {}; // Loaded from Supabase, never filled from local defaults.
     for (const requirement of Object.values(state.graduationRequirements)) { if (!Number.isFinite(Number(requirement.minimumAverageGrade))) requirement.minimumAverageGrade = 70 }
     state.grades = saved.grades && typeof saved.grades === 'object' ? saved.grades : {};
@@ -1388,7 +1388,7 @@
     for (const c of courses) { const p = state.courses[c.id]; if (p) { p.weeks = Array.from({ length: c.weeks.length }, (_, i) => p.weeks?.[i] === true); p.final = p.final === true && p.weeks.every(Boolean) } }
     let schoolFilter = 'all';
     const app = document.getElementById('app');
-    function persist() { try { const localState = Object.fromEntries(Object.entries(state).filter(([property]) => !['addedCourses', 'books', 'syllabus', 'graduationRequirements', 'courses', 'courseYears'].includes(property))); const submissions = { ...(localState.submissions || {}) }; delete submissions.finals; delete submissions.reviews; localState.submissions = submissions; const value = { ...saved, ...localState }; delete value.courses; delete value.courseYears; if (value.submissions) { delete value.submissions.finals; delete value.submissions.reviews; } localStorage.setItem(key, JSON.stringify(value)); return true } catch (e) { storageAvailable = false; toast('Browser storage is unavailable. Progress will last for this session only.'); return false } }
+    function persist() { try { const localState = Object.fromEntries(Object.entries(state).filter(([property]) => !['addedCourses', 'books', 'research', 'syllabus', 'graduationRequirements', 'courses', 'courseYears'].includes(property))); const submissions = { ...(localState.submissions || {}) }; delete submissions.finals; delete submissions.reviews; localState.submissions = submissions; const value = { ...saved, ...localState }; delete value.courses; delete value.courseYears; if (value.submissions) { delete value.submissions.finals; delete value.submissions.reviews; } localStorage.setItem(key, JSON.stringify(value)); return true } catch (e) { storageAvailable = false; toast('Browser storage is unavailable. Progress will last for this session only.'); return false } }
     // Legacy local catalogue values are retained in storage only; persist() writes learner state.
     function toast(message) { document.getElementById('toast').textContent = message; clearTimeout(window.toastTimer); window.toastTimer = setTimeout(() => document.getElementById('toast').textContent = '', 4500) }
     function progress(c) { return state.courses[c.id] || { weeks: c.weeks.map(() => false), final: false } }
@@ -1445,7 +1445,7 @@
     const protectedRender = render; render = function () { if (state.role !== 'admin' && location.hash.slice(1).split('/')[0].startsWith('admin')) { location.hash = 'home'; return } protectedRender() };
     const adminSchoolFormBeforeToggleCleanup = adminSchoolForm; adminSchoolForm = function (id) { return adminSchoolFormBeforeToggleCleanup(id || (location.hash.match(/^#admin-school-edit\/(.+)$/)?.[1] || '')); };
     app.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; if (b.dataset.school) { schoolFilter = b.dataset.school; render() } if (b.dataset.enrol) { const c = courses.find(c => c.id === b.dataset.enrol); if (!state.courses[c.id]) state.courses[c.id] = { weeks: c.weeks.map(() => false), final: false }; persist(); render(); toast('You’re enrolled. Your first week is ready.') } if (b.dataset.club) { const id = b.dataset.club; const joined = state.clubs.includes(id); state.clubs = joined ? state.clubs.filter(c => c !== id) : [...state.clubs, id]; persist(); render(); toast(joined ? 'Club membership removed.' : 'Welcome to the club! Your profile has been updated.') } });
-    app.addEventListener('submit', e => { const form = e.target; if (!form.dataset.form) return; if (['auth-login', 'auth-signup', 'admin-passcode'].includes(form.dataset.form)) return; e.preventDefault(); const data = new FormData(form); if (form.dataset.form === 'research') { state.research.push({ title: data.get('title'), link: data.get('link'), abstract: data.get('abstract') }); toast('Research paper submitted.'); location.hash = 'research' } if (form.dataset.form === 'final') { const link = String(data.get('link') || '').trim(), file = data.get('file')?.name || ''; if (!link && !file) { toast('Add a project link or attach a file.'); return } state.submissions.finals = state.submissions.finals || {}; state.submissions.finals[form.dataset.course] = { link, file, note: data.get('note') }; const course = courses.find(item => item.id === form.dataset.course), progressRecord = course && (state.courses[course.id] || { weeks: course.weeks.map(() => false), final: false }); if (progressRecord) { progressRecord.final = true; state.courses[course.id] = progressRecord } toast('Final work submitted.'); location.hash = 'course/' + form.dataset.course } if (form.dataset.form === 'review') { state.submissions.reviews = state.submissions.reviews || {}; state.submissions.reviews[form.dataset.book] = { review: data.get('review') }; toast('Book review submitted.'); location.hash = 'reading' } if (form.dataset.form === 'course') { const id = 'course-' + Date.now(); const weeks = String(data.get('weeks')).split('\n').filter(Boolean).map(line => { const parts = line.split('|'); return [(parts[0] || 'Untitled week').trim(), (parts[1] || 'Complete the assigned activity.').trim()] }); const course = { id, school: data.get('school'), title: data.get('title'), description: data.get('description'), credits: Number(data.get('credits')), club: 'builders', weeks }; courses.push(course); state.addedCourses.push(course); toast('Course added to the catalogue.'); location.hash = 'admin' } if (form.dataset.form === 'syllabus') { const c = courses.find(course => course.id === data.get('id')); if (c) { c.title = data.get('title'); c.description = data.get('description'); c.weeks = String(data.get('weeks')).split('\n').filter(Boolean).map(line => { const parts = line.split('|'); return [(parts[0] || 'Untitled week').trim(), (parts[1] || 'Complete the assigned activity.').trim()] }); state.syllabus[c.id] = { title: c.title, description: c.description, weeks: c.weeks }; toast('Syllabus updated.') } } if (form.dataset.form === 'book') { const book = { id: 'book-' + Date.now(), title: data.get('title'), author: data.get('author'), level: Number(data.get('level')) }; state.books.push(book); toast('Book added to the reading programme.'); location.hash = 'admin' } persist(); render() });
+    app.addEventListener('submit', e => { const form = e.target; if (!form.dataset.form || form.dataset.form === 'research') return; if (['auth-login', 'auth-signup', 'admin-passcode'].includes(form.dataset.form)) return; e.preventDefault(); const data = new FormData(form); if (form.dataset.form === 'final') { const link = String(data.get('link') || '').trim(), file = data.get('file')?.name || ''; if (!link && !file) { toast('Add a project link or attach a file.'); return } state.submissions.finals = state.submissions.finals || {}; state.submissions.finals[form.dataset.course] = { link, file, note: data.get('note') }; const course = courses.find(item => item.id === form.dataset.course), progressRecord = course && (state.courses[course.id] || { weeks: course.weeks.map(() => false), final: false }); if (progressRecord) { progressRecord.final = true; state.courses[course.id] = progressRecord } toast('Final work submitted.'); location.hash = 'course/' + form.dataset.course } if (form.dataset.form === 'review') { state.submissions.reviews = state.submissions.reviews || {}; state.submissions.reviews[form.dataset.book] = { review: data.get('review') }; toast('Book review submitted.'); location.hash = 'reading' } if (form.dataset.form === 'course') { const id = 'course-' + Date.now(); const weeks = String(data.get('weeks')).split('\n').filter(Boolean).map(line => { const parts = line.split('|'); return [(parts[0] || 'Untitled week').trim(), (parts[1] || 'Complete the assigned activity.').trim()] }); const course = { id, school: data.get('school'), title: data.get('title'), description: data.get('description'), credits: Number(data.get('credits')), club: 'builders', weeks }; courses.push(course); state.addedCourses.push(course); toast('Course added to the catalogue.'); location.hash = 'admin' } if (form.dataset.form === 'syllabus') { const c = courses.find(course => course.id === data.get('id')); if (c) { c.title = data.get('title'); c.description = data.get('description'); c.weeks = String(data.get('weeks')).split('\n').filter(Boolean).map(line => { const parts = line.split('|'); return [(parts[0] || 'Untitled week').trim(), (parts[1] || 'Complete the assigned activity.').trim()] }); state.syllabus[c.id] = { title: c.title, description: c.description, weeks: c.weeks }; toast('Syllabus updated.') } } if (form.dataset.form === 'book') { const book = { id: 'book-' + Date.now(), title: data.get('title'), author: data.get('author'), level: Number(data.get('level')) }; state.books.push(book); toast('Book added to the reading programme.'); location.hash = 'admin' } persist(); render() });
     app.addEventListener('change', e => { const el = e.target; if (el.dataset.week !== undefined) { const p = state.courses[el.dataset.course]; if (!p) return; const hadFinal = p.final; p.weeks[Number(el.dataset.week)] = el.checked; if (!el.checked) p.final = false; persist(); render(); if (hadFinal && !p.final) toast('Course reopened. Credits will return when you complete the final again.') } if (el.dataset.final) { const c = courses.find(c => c.id === el.dataset.final), p = state.courses[c.id]; if (!p || !p.weeks.every(Boolean)) return; p.final = el.checked; persist(); render(); toast(p.final ? 'Course completed! ' + c.credits + ' credits added to your account.' : 'Final unchecked. Course credits removed.') } });
     app.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; if (b.dataset.attend) { const [clubId, date] = b.dataset.attend.split('|'); state.attendance[clubId] = state.attendance[clubId] || {}; state.attendance[clubId][date] = true; persist(); render(); toast('Attendance recorded.') } if (b.dataset.deleteSchool) { schools = schools.filter(s => s.id !== b.dataset.deleteSchool); persist(); render(); toast('School deleted.') } if (b.dataset.deleteClub) { const id = b.dataset.deleteClub; clubs = clubs.filter(c => c.id !== id); state.clubs = state.clubs.filter(c => c !== id); courses.forEach(c => { if (c.club === id) c.club = '' }); persist(); render(); toast('Club deleted.') } if (b.dataset.deleteBook) { state.books = state.books.filter(book => book.id !== b.dataset.deleteBook); persist(); render(); toast('Book deleted.') } });
     app.addEventListener('change', e => { const el = e.target; if (el.dataset.attendanceDay) { const id = el.dataset.attendanceDay; const club = clubs.find(c => c.id === id); const days = state.attendanceDays[id] || []; const next = el.checked ? [...new Set([...days, el.value])] : days.filter(day => day !== el.value); if (next.length > (club?.frequency || 1)) { el.checked = false; toast('Choose no more than ' + club.frequency + ' attendance days.'); return } state.attendanceDays[id] = next; persist(); render() } if (el.dataset.final) { const c = courses.find(c => c.id === el.dataset.final); if (el.checked && c?.club && !state.clubs.includes(c.club)) { state.clubs.push(c.club); persist(); toast('Course completed. Club membership added automatically.') } } });
@@ -1554,8 +1554,7 @@
     const renderBeforeGrades = render; render = function () { const [route, idPart] = location.hash.slice(1).split('/'); if (route === 'grade') { const parts = decodeURIComponent(idPart || '').split('|'); if (parts[0] === 'view') { app.innerHTML = heading('Submission grade', 'Saved feedback', 'Your administrator’s assessment.') + gradeSummary(parts[1]) + '<footer></footer>'; return } app.innerHTML = gradePage(parts[0], parts.slice(1).join('|')) + '<footer></footer>'; return } if (route === 'research') { document.getElementById('breadcrumb').textContent = 'Your campus / Independent research'; document.title = 'Independent research — Openfield University'; app.innerHTML = (state.role === 'admin' ? adminResearchPage() : studentResearchWithGrades()) + '<footer></footer>'; return } if (route === 'reading' && state.role === 'admin') { renderBeforeGrades(); return } if (route === 'admin-course-new' && !idPart) { location.hash = 'schools'; return } renderBeforeGrades() };
     app.addEventListener('submit', e => { const form = e.target; if (form.dataset.form !== 'grade') return; e.preventDefault(); e.stopImmediatePropagation(); if (state.role !== 'admin') return; const data = new FormData(form), ref = form.dataset.ref, type = ref.split(':')[0], rubric = String(data.get('rubric')), definition = rubricDefinitions[rubric], aspects = definition.aspects.map((name, index) => ({ name, mark: Number(data.get('mark-' + index)), max: rubricMaximum(definition, index) })); if (aspects.some(item => !Number.isFinite(item.mark) || item.mark < 0 || item.mark > item.max)) { toast('Marks must be between zero and each aspect’s maximum.'); return } const total = aspects.reduce((sum, item) => sum + item.mark, 0), possible = aspects.reduce((sum, item) => sum + item.max, 0); state.grades[ref] = { rubric, aspects, total, possible, percentage: Number((total / possible * 100).toFixed(1)), feedback: String(data.get('feedback') || '').trim(), gradedAt: new Date().toISOString() }; persist(); toast('Grade saved.'); location.hash = 'admin'; render() });
     app.addEventListener('change', e => { const select = e.target.closest('form[data-form="grade"] select[name="rubric"]'); if (!select) return; const definition = rubricDefinitions[select.value], fields = select.form.querySelector('.grade-fields'); fields.innerHTML = definition.aspects.map((name, index) => '<div class="grade-row"><label>' + name + ' <span class="sub">/ ' + rubricMaximum(definition, index) + '</span></label><input name="mark-' + index + '" type="number" min="0" max="' + rubricMaximum(definition, index) + '" step="0.5" value="0" required></div>').join('') });
-    app.addEventListener('submit', e => { const form = e.target; if (form.dataset.form !== 'research') return; e.preventDefault(); e.stopImmediatePropagation(); const data = new FormData(form), item = { id: 'research-' + Date.now(), title: String(data.get('title') || ''), link: String(data.get('link') || ''), abstract: String(data.get('abstract') || ''), year: studentYear(), completedAt: new Date().toISOString() }; state.research.push(item); persist(); toast('Research paper submitted.'); location.hash = 'research'; render() }, { capture: true });
-    app.addEventListener('click', e => { const button = e.target.closest('[data-delete-research],[data-delete-book],[data-delete-review]'); if (!button) return; e.preventDefault(); e.stopImmediatePropagation(); if (!confirm('Delete this submission or book permanently?')) return; if (button.dataset.deleteResearch) { const id = button.dataset.deleteResearch; state.research = state.research.filter(item => item.id !== id); delete state.grades[gradeRef('research', id)] } if (button.dataset.deleteReview) { const id = button.dataset.deleteReview; delete state.submissions.reviews[id] } if (button.dataset.deleteBook) { const id = button.dataset.deleteBook; state.books = state.books.filter(book => book.id !== id); delete state.submissions.reviews[id] } persist(); render() }, { capture: true });
+    app.addEventListener('click', e => { const button = e.target.closest('[data-delete-book],[data-delete-review]'); if (!button) return; e.preventDefault(); e.stopImmediatePropagation(); if (!confirm('Delete this submission or book permanently?')) return; if (button.dataset.deleteReview) { const id = button.dataset.deleteReview; delete state.submissions.reviews[id] } if (button.dataset.deleteBook) { const id = button.dataset.deleteBook; state.books = state.books.filter(book => book.id !== id); delete state.submissions.reviews[id] } persist(); render() }, { capture: true });
     app.addEventListener('input', e => { const form = e.target.closest('form[data-form="grade"]'); if (!form) return; const marks = [...form.querySelectorAll('.grade-fields input')].map(input => Number(input.value) || 0), total = marks.reduce((sum, mark) => sum + mark, 0), possible = [...form.querySelectorAll('.grade-fields input')].reduce((sum, input) => sum + Number(input.max), 0); form.querySelector('[data-grade-preview]').textContent = 'Current grade: ' + total + ' / ' + possible + ' = ' + (total / possible * 100).toFixed(1) + '%' });
     /* Graduation, year-specific progress, and consolidated student grades. */
     state.courseYears = state.courseYears && typeof state.courseYears === 'object' ? state.courseYears : {};
@@ -1628,7 +1627,6 @@
       syncShellNavigation();
       const hash = location.hash || '', validAdminRoute = /^#(?:admin(?:-[a-z-]+(?:\/[^/]+)?)?|schools|clubs|research|graduation|reading(?:\/[^/]+)?|book\/[^/]+|grade\/review\|[^/]+)$/.test(hash);
       const nextHash = state.role === 'admin' ? (validAdminRoute ? hash : '#admin') : (hash === '#admin' ? '#home' : (hash || '#home'));
-      console.log('[RouteDebug] applyAuthenticatedProfile setting location.hash:', { currentHash: location.hash, nextHash, role: state.role, validAdminRoute });
       location.hash = nextHash;
       persist(); render();
     }
@@ -1706,9 +1704,9 @@
         if (messageElement) messageElement.textContent = message; else toast(message);
       } finally { button.disabled = false; }
     }, true);
-    document.addEventListener('click', async e => { const logout = e.target.closest('#logout-button'); if (!logout) return; e.preventDefault(); const { error } = await openfieldSupabase.auth.signOut(); if (error) { console.error('[Supabase Auth] Sign out failed:', error); toast('Could not sign out. Please try again.'); return; } authState.user = null; authState.profile = null; authState.expectedLoginRole = null; authState.ready = true; document.getElementById('logout-button').hidden = true; location.hash = 'home'; renderAuthScreen(); }, { capture: true });
+    document.addEventListener('click', async e => { const logout = e.target.closest('#logout-button'); if (!logout) return; e.preventDefault(); const { error } = await openfieldSupabase.auth.signOut(); if (error) { console.error('[Supabase Auth] Sign out failed:', error); toast('Could not sign out. Please try again.'); return; } clearResearchSubmissions(); authState.user = null; authState.profile = null; authState.expectedLoginRole = null; authState.ready = true; document.getElementById('logout-button').hidden = true; location.hash = 'home'; renderAuthScreen(); }, { capture: true });
     const renderBeforeAuth = render; render = function () { if (!authState.ready || !authState.user) { renderAuthScreen(); return } renderBeforeAuth() };
-    if (openfieldSupabase) { openfieldSupabase.auth.onAuthStateChange((event, session) => { setTimeout(() => { if (event === 'SIGNED_OUT') { const message = authState.authMessage; authState.authMessage = ''; authState.user = null; authState.profile = null; authState.expectedLoginRole = null; authState.ready = true; document.getElementById('logout-button').hidden = true; renderAuthScreen(message); } else if (session?.user && !authState.expectedLoginRole) restoreSupabaseSession(); }, 0); }); }
+    if (openfieldSupabase) { openfieldSupabase.auth.onAuthStateChange((event, session) => { setTimeout(() => { if (event === 'SIGNED_OUT') { const message = authState.authMessage; authState.authMessage = ''; clearResearchSubmissions(); authState.user = null; authState.profile = null; authState.expectedLoginRole = null; authState.ready = true; document.getElementById('logout-button').hidden = true; renderAuthScreen(message); } else if (session?.user && !authState.expectedLoginRole) restoreSupabaseSession(); }, 0); }); }
     const profileBeforeAdminAccess = profile; profile = function () { return profileBeforeAdminAccess() + adminAccessSection() };
 
     /* Stage 1: shared catalogue lives in Supabase; learner records remain local. */
@@ -2052,6 +2050,125 @@
         return heading('Grading unavailable', 'No active assessment rubrics.', 'Add rubrics and their aspects in the existing backend before grading.');
       return gradePageBeforeCatalogue(type, id);
     };
+    const researchSubmissionState = { userId: null, ready: false, pending: null, error: null, adminScope: false, items: [], profileNames: {} };
+    function clearResearchSubmissions() { researchSubmissionState.userId = null; researchSubmissionState.ready = false; researchSubmissionState.pending = null; researchSubmissionState.error = null; researchSubmissionState.adminScope = false; researchSubmissionState.items = []; researchSubmissionState.profileNames = {}; state.research = []; if (typeof clearResearchGrades === 'function') clearResearchGrades(); }
+    function researchCompatibilityItems(items) { return items.map(item => ({ id: item.submissionId, submissionId: item.submissionId, researchSubmissionId: item.researchSubmissionId, studentId: item.studentId, title: item.title, link: item.researchLink, abstract: item.abstract, year: item.academicYear, completedAt: item.submittedAt, status: item.status, storagePath: item.storagePath, originalFileName: item.originalFileName })); }
+    async function loadResearchSubmissions(force = false) {
+      const userId = authState.user?.id;
+      if (!userId) throw new Error('Sign in to load Research submissions.');
+      const adminScope = state.role === 'admin';
+      if (researchSubmissionState.userId === userId && researchSubmissionState.pending) return researchSubmissionState.pending;
+      if (researchSubmissionState.userId === userId && researchSubmissionState.ready && researchSubmissionState.adminScope === adminScope && !force) return;
+      researchSubmissionState.userId = userId; researchSubmissionState.ready = false; researchSubmissionState.error = null; researchSubmissionState.adminScope = adminScope; researchSubmissionState.items = []; researchSubmissionState.profileNames = {}; state.research = [];
+      const request = (async () => {
+        let parentQuery = openfieldSupabase.from('submissions').select('id,student_id,academic_year,status,submitted_at').eq('submission_type', 'independent_research').is('deleted_at', null).order('submitted_at', { ascending: false });
+        if (!adminScope) parentQuery = parentQuery.eq('student_id', userId);
+        const { data: parents, error: parentError } = await parentQuery;
+        if (parentError) throw parentError;
+        const parentRows = parents || [], parentById = Object.fromEntries(parentRows.map(parent => [parent.id, parent]));
+        if (!parentRows.length) { researchSubmissionState.profileNames = adminScope ? {} : { [userId]: authState.profile?.display_name || userId }; researchSubmissionState.ready = true; return; }
+        const { data: researchRows, error: researchError } = await openfieldSupabase.from('research_submissions').select('id,submission_id,title,abstract,research_link,storage_path,original_file_name,created_at,updated_at').in('submission_id', parentRows.map(parent => parent.id));
+        if (researchError) throw researchError;
+        const items = (researchRows || []).map(row => {
+          const parent = parentById[row.submission_id];
+          return parent ? { submissionId: parent.id, researchSubmissionId: row.id, studentId: parent.student_id, title: row.title, abstract: row.abstract, researchLink: row.research_link, storagePath: row.storage_path, originalFileName: row.original_file_name, academicYear: parent.academic_year, status: parent.status, submittedAt: parent.submitted_at, createdAt: row.created_at, updatedAt: row.updated_at } : null;
+        }).filter(Boolean);
+        const profileNames = adminScope ? {} : { [userId]: authState.profile?.display_name || userId };
+        if (adminScope) {
+          const studentIds = [...new Set(items.map(item => item.studentId).filter(Boolean))];
+          if (studentIds.length) {
+            const { data: profiles, error: profileError } = await openfieldSupabase.from('profiles').select('id,display_name').in('id', studentIds);
+            if (profileError) console.error('[Research submissions] Could not load student profiles:', profileError);
+            else Object.assign(profileNames, Object.fromEntries((profiles || []).map(profile => [profile.id, profile.display_name || profile.id])));
+          }
+        }
+        researchSubmissionState.items = items; researchSubmissionState.profileNames = profileNames; state.research = researchCompatibilityItems(items); researchSubmissionState.ready = true;
+      })().catch(error => { if (researchSubmissionState.userId === userId) researchSubmissionState.error = error; throw error; }).finally(() => { if (researchSubmissionState.pending === request) researchSubmissionState.pending = null; });
+      researchSubmissionState.pending = request;
+      return request;
+    }
+    async function saveResearchSubmission(values) {
+      if (!authState.user?.id) throw new Error('Sign in to submit Research.');
+      const title = String(values.title || '').trim(), abstract = String(values.abstract || '').trim(), researchLink = String(values.link || '').trim();
+      if (!title || !researchLink) throw new Error('Enter a title and research link.');
+      const submittedAt = new Date().toISOString();
+      const { data: parent, error: parentError } = await openfieldSupabase.from('submissions').insert({ student_id: authState.user.id, submission_type: 'independent_research', academic_year: studentYear(), status: 'submitted', submitted_at: submittedAt }).select('id').single();
+      if (parentError) throw parentError;
+      const { error: researchError } = await openfieldSupabase.from('research_submissions').insert({ submission_id: parent.id, title, abstract, research_link: researchLink, storage_path: null, original_file_name: null });
+      if (researchError) {
+        const { error: cleanupError } = await openfieldSupabase.from('submissions').delete().eq('id', parent.id);
+        if (cleanupError) console.error('[Research submissions] Could not clean up parent submission:', cleanupError);
+        throw researchError;
+      }
+    }
+    async function deleteResearchSubmission(submissionId) {
+      if (!submissionId) throw new Error('Research submission is unavailable.');
+      const { error } = await openfieldSupabase.from('submissions').delete().eq('id', submissionId);
+      if (error) throw error;
+    }
+    function researchStudentIdentity(item) { return researchSubmissionState.profileNames[item?.studentId] || item?.studentId || 'Student'; }
+    function researchStudentList() { const items = researchSubmissionState.items; return heading('Independent research', 'Make room for your next question.', 'A space to explore, investigate, and share what you discover.') + '<div class="stack">' + (items.length ? items.map(item => '<article class="panel"><div class="eyebrow">Submitted research</div><h3>' + esc(item.title) + '</h3><p>' + esc(item.abstract) + '</p>' + (item.researchLink ? '<a href="' + esc(item.researchLink) + '" target="_blank" rel="noreferrer">Open research link ↗</a>' : '') + gradeSummary(gradeRef('research', item.submissionId)) + '</article>').join('') : '<div class="panel"><p class="sub">Your submitted research will appear here.</p></div>') + '</div><section class="panel"><div class="section-head" style="margin-top:0"><h2>Add a research paper</h2></div><form data-form="research" class="form-grid"><div class="field"><label for="research-title">Title</label><input id="research-title" name="title" required></div><div class="field"><label for="research-link">Link</label><input id="research-link" name="link" type="url" placeholder="https://" required></div><div class="field full"><label for="research-abstract">Abstract or notes</label><textarea id="research-abstract" name="abstract" required></textarea></div><div class="full"><button class="btn" type="submit">Submit research ↗</button></div></form></section>';
+    }
+    adminResearchPage = function () {
+      const items = researchSubmissionState.items;
+      const submissions = items.length ? items.map(item => '<section class="panel admin-panel"><div class="eyebrow">Submitted research</div><h3>' + esc(item.title) + '</h3><p class="sub"><strong>Student:</strong> ' + esc(researchStudentIdentity(item)) + '<br><strong>Academic Year:</strong> ' + esc(item.academicYear) + '<br><strong>Submitted:</strong> ' + esc(item.submittedAt ? new Date(item.submittedAt).toLocaleDateString() : 'Unavailable') + '</p><p>' + esc(item.abstract) + '</p>' + (item.researchLink ? '<p><a href="' + esc(item.researchLink) + '" target="_blank" rel="noreferrer">Open research link ↗</a></p>' : '') + '<div class="admin-actions"><a class="btn outline" href="#grade/research|' + encodeURIComponent(item.submissionId) + '">' + (gradeFor(gradeRef('research', item.submissionId)) ? 'Edit grade' : 'Grade submission') + '</a><button class="btn outline" type="button" data-delete-research="' + esc(item.submissionId) + '">Delete</button></div></section>').join('') : '<div class="panel"><p class="sub">No independent research submissions yet.</p></div>';
+      return heading('Administrator · Independent research', 'Review submitted research and grade it with a rubric.', 'Review submissions from all authorized student accounts.') + '<div class="stack">' + submissions + '</div>';
+    };
+    const gradePageBeforeResearchIdentity = gradePage;
+    gradePage = function (type, id) {
+      const html = gradePageBeforeResearchIdentity(type, id);
+      if (type !== 'research' || state.role !== 'admin') return html;
+      const submission = researchSubmissionState.items.find(item => String(item.submissionId) === String(id));
+      if (!submission) return html;
+      return html.replace('<section class="panel admin-panel">', '<section class="panel admin-panel"><p class="sub"><strong>Student:</strong> ' + esc(researchStudentIdentity(submission)) + '<br><strong>Title:</strong> ' + esc(submission.title) + (submission.submittedAt ? '<br><strong>Submitted:</strong> ' + esc(new Date(submission.submittedAt).toLocaleDateString()) : '') + '</p>');
+    };
+    const renderBeforeServerResearch = render;
+    render = function () {
+      const researchRoute = /^#research(?:\/[^/]+)?$/.test(location.hash) || /^#grade\/research\|[^/]+$/.test(location.hash);
+      if (researchRoute && authState.user && (!researchSubmissionState.ready || researchSubmissionState.userId !== authState.user.id || researchSubmissionState.adminScope !== (state.role === 'admin'))) {
+        app.innerHTML = '<section class="panel"><h2>Loading Research submissions</h2><p class="sub">Loading your authorized Research submissions…</p></section>';
+        if (!researchSubmissionState.pending) loadResearchSubmissions().then(() => render()).catch(error => { console.error('[Research submissions] Load failed:', error); app.innerHTML = '<section class="panel"><h2>Research unavailable</h2><p class="sub">' + esc(error.message || 'Please refresh and try again.') + '</p></section>'; });
+        return;
+      }
+      renderBeforeServerResearch();
+    };
+    const applyProfileBeforeServerResearch = applyAuthenticatedProfile;
+    applyAuthenticatedProfile = function (user, profile) { if (researchSubmissionState.userId !== user.id || researchSubmissionState.adminScope !== (profile.role === 'admin')) clearResearchSubmissions(); applyProfileBeforeServerResearch(user, profile); };
+    studentResearchWithGrades = researchStudentList;
+    document.addEventListener('submit', async event => {
+      const form = event.target.closest('form[data-form="research"]');
+      if (!form) return;
+      event.preventDefault(); event.stopImmediatePropagation();
+      const button = form.querySelector('button[type="submit"]');
+      if (button) button.disabled = true;
+      try {
+        await saveResearchSubmission(Object.fromEntries(new FormData(form)));
+        await loadResearchSubmissions(true);
+        toast('Research paper submitted.');
+        render();
+      } catch (error) {
+        console.error('[Research submissions] Save failed:', error);
+        toast('Research submission could not be saved: ' + (error.message || 'please try again.'));
+      } finally { if (button) button.disabled = false; }
+    }, true);
+    document.addEventListener('click', async event => {
+      const button = event.target.closest('[data-delete-research]');
+      if (!button) return;
+      event.preventDefault(); event.stopImmediatePropagation();
+      const submissionId = button.dataset.deleteResearch;
+      if (!confirm('Delete this research submission permanently?')) return;
+      button.disabled = true;
+      try {
+        await deleteResearchSubmission(submissionId);
+        await loadResearchSubmissions(true);
+        persist();
+        toast('Research submission deleted.');
+        render();
+      } catch (error) {
+        console.error('[Research submissions] Delete failed:', error);
+        toast('Research submission could not be deleted: ' + (error.message || 'please try again.'));
+      } finally { button.disabled = false; }
+    }, true);
     const profileStatsBeforeCatalogue = profileStats;
     profileStats = function () { return currentGraduationRequirement() ? profileStatsBeforeCatalogue() : '<section class="panel"><p class="sub">Graduation requirements for this academic year have not been configured in Supabase.</p></section>' };
     const graduationProfileBeforeCatalogue = graduationProfile;
@@ -2327,7 +2444,7 @@
       const form = e.target.closest('form[data-form="review"]');
       if (!form) return;
       e.preventDefault(); e.stopImmediatePropagation();
-      saveBookReview(form.dataset.book, Object.fromEntries(new FormData(form))).then(() => { console.log('[RouteDebug] review submission setting location.hash: #reading'); location.hash = 'reading'; render(); toast('Book review submitted. The book is complete.'); })
+      saveBookReview(form.dataset.book, Object.fromEntries(new FormData(form))).then(() => { location.hash = 'reading'; render(); toast('Book review submitted. The book is complete.'); })
         .catch(error => { console.error('[Reading reviews] Save failed:', error); toast('Book review could not be saved: ' + (error.message || 'please try again.')); });
     }, true);
     document.addEventListener('click', e => {
@@ -2340,9 +2457,7 @@
     const renderBeforeReadingReviews = render;
     render = function () {
       if (authState.user && catalogue.ready && catalogue.userId === authState.user.id && (!readingReviewState.ready || readingReviewState.userId !== authState.user.id || readingReviewState.adminScope !== (state.role === 'admin'))) {
-        routeDebugState.lastRenderBranch = 'reading-loading';
         app.innerHTML = '<section class="panel"><h2>Loading your Reading Programme</h2><p class="sub">Loading your completed book reviews…</p></section>';
-        renderRouteDebugPanel();
         if (!readingReviewState.pending) loadReadingReviews().then(() => render()).catch(error => { console.error('[Reading reviews] Load failed:', error); app.innerHTML = '<section class="panel"><h2>Reading Programme unavailable</h2><p class="sub">' + esc(error.message || 'Please refresh and try again.') + '</p></section>'; });
         return;
       }
@@ -2354,8 +2469,8 @@
       applyProfileBeforeReadingReviews(user, profile);
     };
     /* Server-backed Book Review grading.  Other assessment types still use the legacy local grade state. */
-    const bookReviewGradeState = { userId: null, ready: false, pending: null, error: null, adminScope: false, bySubmission: {} };
-    function clearBookReviewGrades() { bookReviewGradeState.ready = false; bookReviewGradeState.pending = null; bookReviewGradeState.error = null; bookReviewGradeState.adminScope = false; bookReviewGradeState.bySubmission = {}; }
+    const bookReviewGradeState = { userId: null, ready: false, pending: null, adminScope: false, bySubmission: {} };
+    function clearBookReviewGrades() { bookReviewGradeState.ready = false; bookReviewGradeState.pending = null; bookReviewGradeState.adminScope = false; bookReviewGradeState.bySubmission = {}; }
     function bookReviewGrade(submissionId) { return bookReviewGradeState.bySubmission[submissionId] || null; }
     function bookReviewGradeSummary(submissionId) {
       const grade = bookReviewGrade(submissionId);
@@ -2368,7 +2483,7 @@
       if (bookReviewGradeState.userId === userId && bookReviewGradeState.pending) return bookReviewGradeState.pending;
       if (bookReviewGradeState.userId === userId && bookReviewGradeState.ready && bookReviewGradeState.adminScope === (state.role === 'admin') && !force) return;
       const submissionIds = (state.role === 'admin' ? readingReviewState.allForAdmin : Object.values(state.submissions.reviews || {})).map(review => review.submission_id || review.submissionId).filter(Boolean);
-      bookReviewGradeState.userId = userId; bookReviewGradeState.ready = false; bookReviewGradeState.error = null; bookReviewGradeState.bySubmission = {};
+      bookReviewGradeState.userId = userId; bookReviewGradeState.ready = false; bookReviewGradeState.bySubmission = {};
       const request = (async () => {
         if (!submissionIds.length) { bookReviewGradeState.adminScope = state.role === 'admin'; bookReviewGradeState.ready = true; return; }
         const { data: grades, error } = await openfieldSupabase.from('grades').select('id,submission_id,rubric_id,total_marks,maximum_marks,percentage,admin_feedback,graded_at').in('submission_id', submissionIds);
@@ -2388,7 +2503,7 @@
           bookReviewGradeState.bySubmission[grade.submission_id] = { id: grade.id, rubric: grade.rubric_id, rubricLabel: rubric?.label || 'Assessment rubric', total: Number(grade.total_marks), possible: Number(grade.maximum_marks), percentage: Number(grade.percentage), feedback: grade.admin_feedback || '', gradedAt: grade.graded_at, aspects: (rubric?.aspects || []).map((name, index) => { const score = scoreByAspect[rubric.aspectIds[index]]; return score ? { id: score.id, aspectId: score.rubric_aspect_id, name, mark: Number(score.awarded_marks), max: Number(score.maximum_marks) } : null; }).filter(Boolean), scores: grade.scores || [] };
         });
         bookReviewGradeState.adminScope = state.role === 'admin'; bookReviewGradeState.ready = true;
-      })().catch(error => { if (bookReviewGradeState.userId === userId) bookReviewGradeState.error = error; throw error; }).finally(() => { if (bookReviewGradeState.pending === request) bookReviewGradeState.pending = null; });
+      })().finally(() => { if (bookReviewGradeState.pending === request) bookReviewGradeState.pending = null; });
       bookReviewGradeState.pending = request;
       return request;
     }
@@ -2423,6 +2538,81 @@
       } catch (error) { await loadBookReviewGrades(true); throw error; }
       await loadBookReviewGrades(true);
     }
+    /* Server-backed Independent Research grades; other legacy grade types remain local. */
+    const researchGradeState = { userId: null, ready: false, pending: null, adminScope: false, bySubmission: {} };
+    function clearResearchGrades() { researchGradeState.userId = null; researchGradeState.ready = false; researchGradeState.pending = null; researchGradeState.adminScope = false; researchGradeState.bySubmission = {}; }
+    function researchGrade(submissionId) { return researchGradeState.bySubmission[submissionId] || null; }
+    function researchGradeSummary(submissionId) { const grade = researchGrade(submissionId); return !grade ? '<div class="grade-panel"><strong>Final Grade</strong><p class="sub">Not yet graded</p></div>' : '<div class="grade-panel"><strong>Final Grade</strong><p><strong>' + grade.total + ' / ' + grade.possible + ' = ' + grade.percentage + '%</strong></p><p class="sub">Rubric: ' + esc(grade.rubricLabel) + '</p>' + grade.aspects.map(item => '<p class="sub">' + esc(item.name) + ': ' + item.mark + ' / ' + item.max + '</p>').join('') + (grade.feedback ? '<p><strong>Feedback</strong><br>' + esc(grade.feedback) + '</p>' : '') + '</div>'; }
+    function researchRubricId() { return Object.keys(rubricDefinitions).find(id => rubricDefinitions[id].label === 'Research-Based') || defaultRubricKey('research'); }
+    async function loadResearchGrades(force = false) {
+      const userId = authState.user?.id;
+      if (!userId || !researchSubmissionState.ready) return;
+      const adminScope = state.role === 'admin';
+      if (researchGradeState.userId === userId && researchGradeState.pending) return researchGradeState.pending;
+      if (researchGradeState.userId === userId && researchGradeState.ready && researchGradeState.adminScope === adminScope && !force) return;
+      const submissionIds = researchSubmissionState.items.map(item => item.submissionId).filter(Boolean);
+      researchGradeState.userId = userId; researchGradeState.ready = false; researchGradeState.bySubmission = {};
+      const request = (async () => {
+        if (!submissionIds.length) { researchGradeState.adminScope = adminScope; researchGradeState.ready = true; return; }
+        const { data: grades, error } = await openfieldSupabase.from('grades').select('id,submission_id,rubric_id,total_marks,maximum_marks,percentage,admin_feedback,graded_at').in('submission_id', submissionIds);
+        if (error) throw error;
+        const gradeRows = grades || [], gradeIds = gradeRows.map(grade => grade.id);
+        let scores = [];
+        if (gradeIds.length) { const result = await openfieldSupabase.from('grade_aspect_scores').select('id,grade_id,rubric_aspect_id,awarded_marks,maximum_marks').in('grade_id', gradeIds); if (result.error) throw result.error; scores = result.data || []; }
+        const byGrade = Object.fromEntries(gradeRows.map(grade => [grade.id, grade])); scores.forEach(score => { (byGrade[score.grade_id].scores ||= []).push(score); });
+        gradeRows.forEach(grade => { const rubric = rubricDefinitions[grade.rubric_id], scoreByAspect = Object.fromEntries((grade.scores || []).map(score => [score.rubric_aspect_id, score])); researchGradeState.bySubmission[grade.submission_id] = { id: grade.id, rubric: grade.rubric_id, rubricLabel: rubric?.label || 'Assessment rubric', total: Number(grade.total_marks), possible: Number(grade.maximum_marks), percentage: Number(grade.percentage), feedback: grade.admin_feedback || '', gradedAt: grade.graded_at, aspects: (rubric?.aspects || []).map((name, index) => { const score = scoreByAspect[rubric.aspectIds[index]]; return score ? { id: score.id, aspectId: score.rubric_aspect_id, name, mark: Number(score.awarded_marks), max: Number(score.maximum_marks) } : null; }).filter(Boolean), scores: grade.scores || [] }; });
+        researchGradeState.adminScope = adminScope; researchGradeState.ready = true;
+      })().finally(() => { if (researchGradeState.pending === request) researchGradeState.pending = null; });
+      researchGradeState.pending = request; return request;
+    }
+    function researchGradePage(submissionId) {
+      const research = researchSubmissionState.items.find(item => String(item.submissionId) === String(submissionId));
+      if (!research) return heading('Not found', 'Research submission not found.', 'This submission may no longer be available to your account.');
+      const grade = researchGrade(submissionId), rubricId = grade?.rubric || researchRubricId(), rubric = rubricDefinitions[rubricId];
+      if (!rubric) return heading('Grading unavailable', 'No active Research rubric.', 'Add the existing Research-Based rubric and aspects in Supabase before grading.');
+      if (state.role !== 'admin') return '<a class="back" href="#research">← Back to Independent Research</a>' + heading('Submission grade', research.title, 'Your administrator’s assessment.') + researchGradeSummary(submissionId);
+      const marks = Object.fromEntries((grade?.aspects || []).map(item => [item.aspectId, item.mark]));
+      return '<a class="back" href="#research">← Back to Independent Research</a>' + heading('Administrator · Grading', 'Grade research submission', 'Select a rubric, award marks, and provide feedback.') + '<section class="panel admin-panel"><p class="sub"><strong>Student:</strong> ' + esc(researchStudentIdentity(research)) + '<br><strong>Title:</strong> ' + esc(research.title) + '</p><p>' + esc(research.abstract) + '</p>' + (research.researchLink ? '<p><a href="' + esc(research.researchLink) + '" target="_blank" rel="noreferrer">Open research link ↗</a></p>' : '') + '<form data-form="research-grade" data-submission-id="' + esc(submissionId) + '" class="stack"><div class="field"><label>Rubric</label><select name="rubric">' + Object.entries(rubricDefinitions).map(([id, item]) => '<option value="' + esc(id) + '" ' + (id === rubricId ? 'selected' : '') + '>' + esc(item.label) + '</option>').join('') + '</select></div><div class="grade-fields">' + rubric.aspects.map((name, index) => '<div class="grade-row"><label>' + esc(name) + ' <span class="sub">/ ' + rubricMaximum(rubric, index) + '</span></label><input name="mark-' + index + '" type="number" min="0" max="' + rubricMaximum(rubric, index) + '" step="0.5" value="' + Number(marks[rubric.aspectIds[index]] || 0) + '" required></div>').join('') + '</div><div class="field"><label>Feedback</label><textarea name="feedback">' + esc(grade?.feedback || '') + '</textarea></div><p class="grade-summary" data-grade-preview>Enter marks to calculate the grade.</p><button class="btn" type="submit">Save Grade</button></form></section>';
+    }
+    async function saveResearchGrade(form) {
+      const submissionId = form.dataset.submissionId, research = researchSubmissionState.items.find(item => String(item.submissionId) === String(submissionId)), rubricId = String(new FormData(form).get('rubric') || ''), rubric = rubricDefinitions[rubricId];
+      if (!research || !rubric || state.role !== 'admin' || !authState.user?.id) throw new Error('This Research submission or rubric is no longer available.');
+      const data = new FormData(form), aspects = rubric.aspects.map((name, index) => ({ rubric_aspect_id: rubric.aspectIds[index], awarded_marks: Number(data.get('mark-' + index)), maximum_marks: rubricMaximum(rubric, index) }));
+      if (aspects.some(item => !Number.isFinite(item.awarded_marks) || item.awarded_marks < 0 || item.awarded_marks > item.maximum_marks)) throw new Error('Marks must be between zero and each aspect maximum.');
+      const total = aspects.reduce((sum, item) => sum + item.awarded_marks, 0), possible = aspects.reduce((sum, item) => sum + item.maximum_marks, 0), percentage = possible ? Number((total / possible * 100).toFixed(1)) : 0, existing = researchGrade(submissionId), values = { rubric_id: rubricId, total_marks: total, maximum_marks: possible, percentage, admin_feedback: String(data.get('feedback') || '').trim(), graded_by: authState.user.id, graded_at: new Date().toISOString() };
+      try { let gradeId; if (existing) { const result = await openfieldSupabase.from('grades').update(values).eq('id', existing.id).eq('submission_id', submissionId).select('id').single(); if (result.error) throw result.error; gradeId = result.data.id; } else { const result = await openfieldSupabase.from('grades').insert({ submission_id: submissionId, ...values }).select('id').single(); if (result.error) throw result.error; gradeId = result.data.id; } const stale = (existing?.scores || []).filter(score => !aspects.some(item => item.rubric_aspect_id === score.rubric_aspect_id)).map(score => score.id); if (stale.length) { const result = await openfieldSupabase.from('grade_aspect_scores').delete().in('id', stale); if (result.error) throw result.error; } const result = await openfieldSupabase.from('grade_aspect_scores').upsert(aspects.map(item => ({ grade_id: gradeId, ...item })), { onConflict: 'grade_id,rubric_aspect_id' }); if (result.error) throw result.error; } catch (error) { await loadResearchGrades(true); throw error; }
+      await loadResearchGrades(true);
+    }
+    researchStudentList = function () { const items = researchSubmissionState.items; return heading('Independent research', 'Make room for your next question.', 'A space to explore, investigate, and share what you discover.') + '<div class="stack">' + (items.length ? items.map(item => '<article class="panel"><div class="eyebrow">Submitted research</div><h3>' + esc(item.title) + '</h3><p>' + esc(item.abstract) + '</p>' + (item.researchLink ? '<a href="' + esc(item.researchLink) + '" target="_blank" rel="noreferrer">Open research link ↗</a>' : '') + researchGradeSummary(item.submissionId) + '</article>').join('') : '<div class="panel"><p class="sub">Your submitted research will appear here.</p></div>') + '</div><section class="panel"><div class="section-head" style="margin-top:0"><h2>Add a research paper</h2></div><form data-form="research" class="form-grid"><div class="field"><label for="research-title">Title</label><input id="research-title" name="title" required></div><div class="field"><label for="research-link">Link</label><input id="research-link" name="link" type="url" placeholder="https://" required></div><div class="field full"><label for="research-abstract">Abstract or notes</label><textarea id="research-abstract" name="abstract" required></textarea></div><div class="full"><button class="btn" type="submit">Submit research ↗</button></div></form></section>'; };
+    studentResearchWithGrades = researchStudentList;
+    adminResearchPage = function () { const items = researchSubmissionState.items, submissions = items.length ? items.map(item => { const grade = researchGrade(item.submissionId); return '<section class="panel admin-panel"><div class="eyebrow">Submitted research</div><h3>' + esc(item.title) + '</h3><p class="sub"><strong>Student:</strong> ' + esc(researchStudentIdentity(item)) + '<br><strong>Academic Year:</strong> ' + esc(item.academicYear) + '<br><strong>Submitted:</strong> ' + esc(item.submittedAt ? new Date(item.submittedAt).toLocaleDateString() : 'Unavailable') + '</p><p>' + esc(item.abstract) + '</p>' + (item.researchLink ? '<p><a href="' + esc(item.researchLink) + '" target="_blank" rel="noreferrer">Open research link ↗</a></p>' : '') + '<div class="admin-actions"><span class="sub">' + (grade ? grade.percentage + '% graded' : 'Not yet graded') + '</span> <a class="btn outline" href="#grade/research|' + encodeURIComponent(item.submissionId) + '">' + (grade ? 'Edit grade' : 'Grade submission') + '</a><button class="btn outline" type="button" data-delete-research="' + esc(item.submissionId) + '">Delete</button></div></section>'; }).join('') : '<div class="panel"><p class="sub">No independent research submissions yet.</p></div>'; return heading('Administrator · Independent research', 'Review submitted research and grade it with a rubric.', 'Review submissions from all authorized student accounts.') + '<div class="stack">' + submissions + '</div>'; };
+    document.addEventListener('submit', e => { const form = e.target.closest('form[data-form="research-grade"]'); if (!form) return; e.preventDefault(); e.stopImmediatePropagation(); const button = form.querySelector('button[type="submit"]'); button.disabled = true; saveResearchGrade(form).then(() => { toast('Research grade saved.'); render(); }).catch(error => { console.error('[Research grades] Save failed:', error); toast('Research grade could not be saved: ' + (error.message || 'please try again.')); render(); }).finally(() => { button.disabled = false; }); }, true);
+    document.addEventListener('change', e => { const select = e.target.closest('form[data-form="research-grade"] select[name="rubric"]'); if (!select) return; const rubric = rubricDefinitions[select.value], fields = select.form.querySelector('.grade-fields'); if (!rubric) return; fields.innerHTML = rubric.aspects.map((name, index) => '<div class="grade-row"><label>' + esc(name) + ' <span class="sub">/ ' + rubricMaximum(rubric, index) + '</span></label><input name="mark-' + index + '" type="number" min="0" max="' + rubricMaximum(rubric, index) + '" step="0.5" value="0" required></div>').join(''); }, true);
+    document.addEventListener('input', e => { const form = e.target.closest('form[data-form="research-grade"]'); if (!form) return; const inputs = [...form.querySelectorAll('.grade-fields input')], total = inputs.reduce((sum, input) => sum + (Number(input.value) || 0), 0), possible = inputs.reduce((sum, input) => sum + Number(input.max), 0); form.querySelector('[data-grade-preview]').textContent = 'Current grade: ' + total + ' / ' + possible + ' = ' + (possible ? (total / possible * 100).toFixed(1) : '0.0') + '%'; }, true);
+    const renderBeforeServerResearchGrades = render;
+    render = function () { const submissionId = location.hash.match(/^#grade\/research\|(.+)$/)?.[1]; if (submissionId) { markResearchNavigation('Independent Research grading'); if (!researchSubmissionState.ready || researchSubmissionState.userId !== authState.user?.id || researchSubmissionState.adminScope !== (state.role === 'admin')) { app.innerHTML = '<section class="panel"><h2>Loading Research submission</h2><p class="sub">Loading the selected Research submission…</p></section>'; if (authState.user && !researchSubmissionState.pending) loadResearchSubmissions().then(() => render()).catch(error => { console.error('[Research grades] Submission load failed:', error); app.innerHTML = '<section class="panel"><h2>Research unavailable</h2><p class="sub">' + esc(error.message || 'Please refresh and try again.') + '</p></section>'; }); return; } if (!researchGradeState.ready || researchGradeState.userId !== authState.user?.id || researchGradeState.adminScope !== (state.role === 'admin')) { app.innerHTML = '<section class="panel"><h2>Loading Research grade</h2><p class="sub">Loading the selected Research grade…</p></section>'; if (!researchGradeState.pending) loadResearchGrades().then(() => render()).catch(error => { console.error('[Research grades] Grade load failed:', error); app.innerHTML = '<section class="panel"><h2>Grades unavailable</h2><p class="sub">' + esc(error.message || 'Please refresh and try again.') + '</p></section>'; }); return; } app.innerHTML = researchGradePage(decodeURIComponent(submissionId)) + '<footer></footer>'; return; } if (/^#research(?:\/[^/]+)?$/.test(location.hash) && researchSubmissionState.ready && (!researchGradeState.ready || researchGradeState.userId !== authState.user?.id || researchGradeState.adminScope !== (state.role === 'admin'))) { app.innerHTML = '<section class="panel"><h2>Loading Research grades</h2><p class="sub">Loading Research grades…</p></section>'; if (!researchGradeState.pending) loadResearchGrades().then(() => render()).catch(error => { console.error('[Research grades] Load failed:', error); app.innerHTML = '<section class="panel"><h2>Grades unavailable</h2><p class="sub">' + esc(error.message || 'Please refresh and try again.') + '</p></section>'; }); return; } renderBeforeServerResearchGrades(); };
+    const applyProfileBeforeResearchGrades = applyAuthenticatedProfile;
+    applyAuthenticatedProfile = function (user, profile) { if (researchGradeState.userId !== user.id || researchGradeState.adminScope !== (profile.role === 'admin')) clearResearchGrades(); applyProfileBeforeResearchGrades(user, profile); };
+    function studentGradeAggregationReady() { return state.role === 'student' && readingReviewState.ready && bookReviewGradeState.ready && researchSubmissionState.ready && researchGradeState.ready && readingReviewState.adminScope === false && bookReviewGradeState.adminScope === false && researchSubmissionState.adminScope === false && researchGradeState.adminScope === false; }
+    function studentAggregatedGrades(year) {
+      if (!studentGradeAggregationReady()) return null;
+      const inYear = item => !year || Number(item.year || item.academicYear || 1) === Number(year), valid = grade => Number.isFinite(Number(grade?.percentage)) && Number(grade.percentage) >= 0 && Number(grade.percentage) <= 100;
+      const legacy = Object.entries(state.grades || {}).filter(([ref]) => ['final', 'commitment'].includes(ref.split(':')[0])).map(([ref, grade]) => { const [type, ...parts] = ref.split(':'), id = parts.join(':'), submission = submissionForGrade(ref); return submission && inYear(submission) && valid(grade) ? { type, id, title: type === 'final' ? courses.find(course => course.id === id)?.title || id : state.clubCommitmentSubmissions[id]?.link || 'Club commitment', grade } : null; }).filter(Boolean);
+      const reviews = Object.entries(state.submissions.reviews || {}).map(([bookId, review]) => { const grade = bookReviewGrade(review.submissionId); return review && inYear(review) && valid(grade) ? { type: 'review', id: review.submissionId, title: state.books.find(book => String(book.id) === String(bookId))?.title || 'Book Review', grade } : null; }).filter(Boolean);
+      const research = researchSubmissionState.items.map(item => { const grade = researchGrade(item.submissionId); return inYear(item) && valid(grade) ? { type: 'research', id: item.submissionId, title: item.title, grade } : null; }).filter(Boolean);
+      return [...legacy, ...reviews, ...research];
+    }
+    const averageGradeBeforeServerAssessmentAggregation = averageGrade;
+    averageGrade = function (year) { if (state.role !== 'student') return averageGradeBeforeServerAssessmentAggregation(year); const grades = studentAggregatedGrades(year); return grades === null ? null : grades.length ? Number((grades.reduce((sum, item) => sum + Number(item.grade.percentage), 0) / grades.length).toFixed(1)) : null; };
+    function loadStudentAggregateGrades() {
+      if (!authState.user || state.role !== 'student') return;
+      const work = [];
+      if (!readingReviewState.ready && !readingReviewState.pending) work.push(loadReadingReviews());
+      if (!researchSubmissionState.ready && !researchSubmissionState.pending) work.push(loadResearchSubmissions());
+      Promise.all(work).then(() => Promise.all([!bookReviewGradeState.ready && !bookReviewGradeState.pending ? loadBookReviewGrades() : null, !researchGradeState.ready && !researchGradeState.pending ? loadResearchGrades() : null].filter(Boolean))).then(() => render()).catch(error => console.error('[Grade aggregation] Load failed:', error));
+    }
+    const gradesPageBeforeServerAssessmentAggregation = gradesPage;
+    gradesPage = function () { if (state.role !== 'student') return gradesPageBeforeServerAssessmentAggregation(); if (!studentGradeAggregationReady()) { loadStudentAggregateGrades(); return '<a class="back" href="#profile">← Back to My Profile</a>' + heading('My profile', 'Grades', 'Loading your server-backed assessment grades…') + '<section class="panel"><p class="sub">Loading grades…</p></section>'; } const items = studentAggregatedGrades(), average = averageGrade(), labels = { final: 'Course Finals', commitment: 'Club Commitments', review: 'Book Reviews', research: 'Independent Research' }; return '<a class="back" href="#profile">← Back to My Profile</a>' + heading('My profile', 'Grades', 'Your administrator-assigned grades, rubrics, and feedback.') + '<section class="panel"><h2>Average Grade: ' + (average === null ? '—' : average + '%') + '</h2><p class="sub">Calculated from all current graded submissions.</p></section>' + Object.entries(labels).map(([type, label]) => { const group = items.filter(item => item.type === type); return group.length ? '<section class="panel"><h2>' + label + '</h2>' + group.map(item => '<article class="submission"><h3>' + esc(item.title) + '</h3>' + (item.grade.rubricLabel ? '<div class="grade-panel"><strong>Final Grade: ' + item.grade.percentage + '%</strong><p class="sub">Rubric: ' + esc(item.grade.rubricLabel) + '</p>' + item.grade.aspects.map(aspect => '<p class="sub">' + esc(aspect.name) + ': ' + aspect.mark + ' / ' + aspect.max + '</p>').join('') + '<p><strong>Total marks:</strong> ' + item.grade.total + ' / ' + item.grade.possible + '</p>' + (item.grade.feedback ? '<p><strong>Admin feedback</strong><br>' + esc(item.grade.feedback) + '</p>' : '') + '</div>' : gradeDetails(item.grade)) + '</article>').join('') + '</section>' : ''; }).join('') + (items.length ? '' : '<section class="panel"><p class="sub">No grades have been assigned yet.</p></section>'); };
     const studentBookPageBeforeServerGrades = studentBookPage;
     studentBookPage = function (id) { const html = studentBookPageBeforeServerGrades(id); const review = state.submissions.reviews?.[id]; return html + (review ? bookReviewGradeSummary(review.submissionId) : ''); };
     adminReadingReviews = function (bookId = '') {
@@ -2439,36 +2629,14 @@
       if (selectedBook) return '<a class="back" href="#reading">← Back to Reading Programme</a>' + heading('Administrator · Reading programme', selectedBook.title, 'Submitted Reviews') + '<div class="section-head"><h2>Submitted Reviews</h2></div><div class="stack">' + (cards || '<section class="panel"><p class="sub">No reviews have been submitted for this book.</p></section>') + '</div>';
       return heading('Administrator · Reading programme', 'Curate books and review submissions.', 'Manage the seven reading levels and inspect submitted reviews.') + readingLevels(true) + '<div class="section-head"><h2>Submitted reviews</h2></div><div class="stack">' + (cards || '<p class="sub">No submitted reviews yet.</p>') + '</div>';
     };
-    document.addEventListener('submit', e => { const form = e.target.closest('form[data-form="book-review-grade"]'); if (!form) return; e.preventDefault(); e.stopImmediatePropagation(); const button = form.querySelector('button[type="submit"]'); button.disabled = true; saveBookReviewGrade(form).then(() => { toast('Book Review grade saved.'); console.log('[RouteDebug] Book Review grade save setting location.hash: #reading'); location.hash = 'reading'; render(); }).catch(error => { console.error('[Book Review grades] Save failed:', error); toast('Book Review grade could not be saved: ' + (error.message || 'please try again.')); render(); }).finally(() => { button.disabled = false; }); }, true);
+    document.addEventListener('submit', e => { const form = e.target.closest('form[data-form="book-review-grade"]'); if (!form) return; e.preventDefault(); e.stopImmediatePropagation(); const button = form.querySelector('button[type="submit"]'); button.disabled = true; saveBookReviewGrade(form).then(() => { toast('Book Review grade saved.'); location.hash = 'reading'; render(); }).catch(error => { console.error('[Book Review grades] Save failed:', error); toast('Book Review grade could not be saved: ' + (error.message || 'please try again.')); render(); }).finally(() => { button.disabled = false; }); }, true);
     document.addEventListener('change', e => { const select = e.target.closest('form[data-form="book-review-grade"] select[name="rubric"]'); if (!select) return; const rubric = rubricDefinitions[select.value], fields = select.form.querySelector('.grade-fields'); if (!rubric) return; fields.innerHTML = rubric.aspects.map((name, index) => '<div class="grade-row"><label>' + esc(name) + ' <span class="sub">/ ' + rubricMaximum(rubric, index) + '</span></label><input name="mark-' + index + '" type="number" min="0" max="' + rubricMaximum(rubric, index) + '" step="0.5" value="0" required></div>').join(''); }, true);
     document.addEventListener('input', e => { const form = e.target.closest('form[data-form="book-review-grade"]'); if (!form) return; const inputs = [...form.querySelectorAll('.grade-fields input')], total = inputs.reduce((sum, input) => sum + (Number(input.value) || 0), 0), possible = inputs.reduce((sum, input) => sum + Number(input.max), 0); form.querySelector('[data-grade-preview]').textContent = 'Current grade: ' + total + ' / ' + possible + ' = ' + (possible ? (total / possible * 100).toFixed(1) : '0.0') + '%'; }, true);
     function markReadingNavigation(title = 'Reading programme') { document.querySelectorAll('[data-nav]').forEach(a => { const active = a.dataset.nav === 'reading'; a.classList.toggle('active', active); if (active) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); }); document.getElementById('breadcrumb').textContent = 'Your campus / ' + title; document.title = title + ' — Openfield University'; }
-    /* TEMPORARY: Book Review Grade Review route diagnostics. Remove after browser investigation. */
-    const routeDebugState = { parsedSubmissionId: null, lastRenderBranch: 'not rendered yet' };
-    function routeDebugError(error) { return error ? (error.message || String(error)) : 'none'; }
-    function renderRouteDebugPanel() {
-      const panelId = 'route-debug-panel';
-      const existing = document.getElementById(panelId);
-      if (!authState.user || state.role !== 'admin') { if (existing) existing.remove(); return; }
-      const parsedSubmissionId = routeDebugState.parsedSubmissionId;
-      const reviews = readingReviewState.allForAdmin || [];
-      const matched = parsedSubmissionId && reviews.find(review => String(review.submission_id) === String(parsedSubmissionId));
-      const panel = existing || document.body.appendChild(document.createElement('aside'));
-      panel.id = panelId;
-      panel.setAttribute('aria-live', 'polite');
-      panel.style.cssText = 'position:fixed;right:12px;bottom:12px;z-index:9999;max-width:min(520px,calc(100vw - 24px));max-height:45vh;overflow:auto;padding:12px;background:#161b22;color:#f4f7fb;border:1px solid #64748b;border-radius:8px;font:12px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;box-shadow:0 8px 24px rgba(0,0,0,.35);white-space:pre-wrap';
-      panel.textContent = 'TEMPORARY ROUTE DEBUG\n\nCURRENT HASH:\n' + (location.hash || '(empty)') + '\n\nROLE:\n' + state.role + '\n\nBOOK REVIEW ROUTE:\n' + (parsedSubmissionId || 'NONE') + '\n\nREADING REVIEWS READY:\n' + readingReviewState.ready + '\n\nADMIN REVIEW COUNT:\n' + reviews.length + '\n\nBOOK REVIEW GRADES READY:\n' + bookReviewGradeState.ready + '\n\nMATCHED SUBMISSION:\n' + (matched?.submission_id || 'NONE') + '\n\nREADING ERROR:\n' + routeDebugError(readingReviewState.error) + '\n\nGRADE ERROR:\n' + routeDebugError(bookReviewGradeState.error) + '\n\nLAST RENDER BRANCH:\n' + routeDebugState.lastRenderBranch;
-    }
-    window.addEventListener('hashchange', event => {
-      console.log('[RouteDebug] hashchange oldURL:', event.oldURL);
-      console.log('[RouteDebug] hashchange newURL:', event.newURL);
-      console.log('[RouteDebug] location.hash:', location.hash);
-      renderRouteDebugPanel();
-    });
+    function markResearchNavigation(title = 'Independent research') { document.querySelectorAll('[data-nav]').forEach(a => { const active = a.dataset.nav === 'research'; a.classList.toggle('active', active); if (active) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); }); document.getElementById('breadcrumb').textContent = 'Your campus / ' + title; document.title = title + ' — Openfield University'; }
     function bookReviewGradeRoute() {
       const match = location.hash.match(/^#grade\/review\|(.+)$/);
-      routeDebugState.parsedSubmissionId = match ? decodeURIComponent(match[1]) : null;
-      return routeDebugState.parsedSubmissionId;
+      return match ? decodeURIComponent(match[1]) : null;
     }
     document.addEventListener('click', event => {
       const link = event.target.closest('a[href^="#grade/review|"]');
@@ -2477,44 +2645,33 @@
       const encodedSubmissionId = href.slice('#grade/review|'.length);
       if (!encodedSubmissionId) return;
       const gradeHash = '#grade/review|' + encodedSubmissionId;
-      console.log('[RouteDebug] Grade Review clicked');
-      console.log('[RouteDebug] submission_id =', decodeURIComponent(encodedSubmissionId));
-      console.log('[RouteDebug] target hash =', gradeHash);
       event.preventDefault();
       // Keep a card-level navigation handler from replacing this specific grade route.
       event.stopPropagation();
       if (location.hash === gradeHash) render();
-      else { console.log('[RouteDebug] setting location.hash for Grade Review:', gradeHash); location.hash = gradeHash; }
+      else location.hash = gradeHash;
     }, true);
     const renderBeforeServerBookReviewGrades = render;
     render = function () {
+      if (/^#research(?:\/[^/]+)?$/.test(location.hash) || /^#grade\/research\|[^/]+$/.test(location.hash)) markResearchNavigation();
       const submissionId = bookReviewGradeRoute();
       if (submissionId) {
         markReadingNavigation('Book Review grading');
         if (!authState.user || !catalogue.ready || catalogue.userId !== authState.user.id || !readingReviewState.ready || readingReviewState.adminScope !== (state.role === 'admin')) {
-          routeDebugState.lastRenderBranch = 'book-review-grade-loading-review';
           app.innerHTML = '<section class="panel"><h2>Loading review submission</h2><p class="sub">Loading the selected Book Review…</p></section>';
-          renderRouteDebugPanel();
           if (authState.user && catalogue.ready && catalogue.userId === authState.user.id && !readingReviewState.pending) loadReadingReviews().then(() => render()).catch(error => { console.error('[Book Review route] Load failed:', error); app.innerHTML = '<section class="panel"><h2>Review unavailable</h2><p class="sub">' + esc(error.message || 'Please refresh and try again.') + '</p></section>'; });
           return;
         }
         if (!bookReviewGradeState.ready || bookReviewGradeState.userId !== authState.user.id || bookReviewGradeState.adminScope !== (state.role === 'admin')) {
-          routeDebugState.lastRenderBranch = 'book-review-grade-loading-grade';
           app.innerHTML = '<section class="panel"><h2>Loading grades</h2><p class="sub">Loading the selected Book Review grade…</p></section>';
-          renderRouteDebugPanel();
           if (!bookReviewGradeState.pending) loadBookReviewGrades().then(() => render()).catch(error => { console.error('[Book Review grades] Load failed:', error); app.innerHTML = '<section class="panel"><h2>Grades unavailable</h2><p class="sub">' + esc(error.message || 'Please refresh and try again.') + '</p></section>'; });
           return;
         }
-        routeDebugState.lastRenderBranch = 'book-review-grade';
         app.innerHTML = bookReviewGradePage(submissionId) + '<footer></footer>';
-        renderRouteDebugPanel();
         return;
       }
-      const [route] = location.hash.slice(1).split('/');
-      routeDebugState.lastRenderBranch = route === 'admin' ? 'admin-overview' : route === 'reading' ? (location.hash.includes('/') ? 'reading-submissions' : 'reading') : route === 'book' ? 'reading-book' : route === 'grade' ? 'legacy-grade' : route ? 'fallback:' + route : 'fallback';
-      if (authState.user && readingReviewState.ready && (!bookReviewGradeState.ready || bookReviewGradeState.userId !== authState.user.id || bookReviewGradeState.adminScope !== (state.role === 'admin'))) { routeDebugState.lastRenderBranch = 'book-review-grade-list-loading'; app.innerHTML = '<section class="panel"><h2>Loading grades</h2><p class="sub">Loading Book Review grades…</p></section>'; renderRouteDebugPanel(); if (!bookReviewGradeState.pending) loadBookReviewGrades().then(() => render()).catch(error => { console.error('[Book Review grades] Load failed:', error); app.innerHTML = '<section class="panel"><h2>Grades unavailable</h2><p class="sub">' + esc(error.message || 'Please refresh and try again.') + '</p></section>'; }); return; }
+      if (authState.user && readingReviewState.ready && (!bookReviewGradeState.ready || bookReviewGradeState.userId !== authState.user.id || bookReviewGradeState.adminScope !== (state.role === 'admin'))) { app.innerHTML = '<section class="panel"><h2>Loading grades</h2><p class="sub">Loading Book Review grades…</p></section>'; if (!bookReviewGradeState.pending) loadBookReviewGrades().then(() => render()).catch(error => { console.error('[Book Review grades] Load failed:', error); app.innerHTML = '<section class="panel"><h2>Grades unavailable</h2><p class="sub">' + esc(error.message || 'Please refresh and try again.') + '</p></section>'; }); return; }
       renderBeforeServerBookReviewGrades();
-      renderRouteDebugPanel();
     };
     const applyProfileBeforeServerBookReviewGrades = applyAuthenticatedProfile;
     applyAuthenticatedProfile = function (user, profile) { if (bookReviewGradeState.userId !== user.id) clearBookReviewGrades(); applyProfileBeforeServerBookReviewGrades(user, profile); };
