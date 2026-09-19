@@ -1549,7 +1549,6 @@
     const originalFinalPageForGrades = finalPage; finalPage = function (id) { return originalFinalPageForGrades(id) + ((state.role === 'student' || state.role === 'admin') ? gradeSummary(gradeRef('final', id)) : '') };
     const originalBookPageForGrades = bookPage; bookPage = function (id) { return originalBookPageForGrades(id); };
     const originalClubDetailForGrades = clubDetail; clubDetail = function (id) { let html = originalClubDetailForGrades(id); if (state.role !== 'admin') return html; const club = clubs.find(item => item.id === id), rows = Object.entries(state.clubCommitmentSubmissions || {}).filter(([key]) => key.startsWith(id + '|')).map(([key, submission]) => '<p><a class="btn outline" href="#grade/commitment|' + encodeURIComponent(key) + '">' + (gradeFor(gradeRef('commitment', key)) ? 'Edit commitment grade' : 'Grade commitment') + '</a> <span class="sub">' + (submission.completed ? 'Submitted' : 'Saved') + '</span></p>').join(''); return html + (rows ? '<section class="panel admin-panel"><div class="eyebrow">Submitted commitments</div>' + rows + '</section>' : '') };
-    const originalFinalPageWithGradeLink = finalPage; finalPage = function (id) { const html = originalFinalPageWithGradeLink(id); return state.role === 'admin' ? html + '<a class="btn outline" href="#grade/final|' + id + '">' + (gradeFor(gradeRef('final', id)) ? 'Edit Final grade' : 'Grade Final submission') + '</a>' : html };
     const originalResearchPlaceholderForGrades = placeholder; function studentResearchWithGrades() { return heading('Independent research', 'Make room for your next question.', 'A space to explore, investigate, and share what you discover.') + '<div class="stack">' + (state.research.length ? state.research.map(item => '<article class="panel"><div class="eyebrow">Submitted research</div><h3>' + esc(item.title) + '</h3><p>' + esc(item.abstract) + '</p><a href="' + esc(item.link) + '" target="_blank" rel="noreferrer">Open research link ↗</a>' + gradeSummary(gradeRef('research', item.id)) + '</article>').join('') : '<div class="panel"><p class="sub">Your submitted research will appear here.</p></div>') + '</div>' + originalResearchPlaceholderForGrades('research').split('<div class="stack">').pop().replace(/^.*?<section class="panel">/, '<section class="panel">') }; placeholder = function (type) { return type === 'research' ? (state.role === 'admin' ? adminResearchPage() : studentResearchWithGrades()) : originalResearchPlaceholderForGrades(type) };
     const renderBeforeGrades = render; render = function () { const [route, idPart] = location.hash.slice(1).split('/'); if (route === 'grade') { const parts = decodeURIComponent(idPart || '').split('|'); if (parts[0] === 'view') { app.innerHTML = heading('Submission grade', 'Saved feedback', 'Your administrator’s assessment.') + gradeSummary(parts[1]) + '<footer></footer>'; return } app.innerHTML = gradePage(parts[0], parts.slice(1).join('|')) + '<footer></footer>'; return } if (route === 'research') { document.getElementById('breadcrumb').textContent = 'Your campus / Independent research'; document.title = 'Independent research — Openfield University'; app.innerHTML = (state.role === 'admin' ? adminResearchPage() : studentResearchWithGrades()) + '<footer></footer>'; return } if (route === 'reading' && state.role === 'admin') { renderBeforeGrades(); return } if (route === 'admin-course-new' && !idPart) { location.hash = 'schools'; return } renderBeforeGrades() };
     app.addEventListener('submit', e => { const form = e.target; if (form.dataset.form !== 'grade') return; e.preventDefault(); e.stopImmediatePropagation(); if (state.role !== 'admin') return; const data = new FormData(form), ref = form.dataset.ref, type = ref.split(':')[0], rubric = String(data.get('rubric')), definition = rubricDefinitions[rubric], aspects = definition.aspects.map((name, index) => ({ name, mark: Number(data.get('mark-' + index)), max: rubricMaximum(definition, index) })); if (aspects.some(item => !Number.isFinite(item.mark) || item.mark < 0 || item.mark > item.max)) { toast('Marks must be between zero and each aspect’s maximum.'); return } const total = aspects.reduce((sum, item) => sum + item.mark, 0), possible = aspects.reduce((sum, item) => sum + item.max, 0); state.grades[ref] = { rubric, aspects, total, possible, percentage: Number((total / possible * 100).toFixed(1)), feedback: String(data.get('feedback') || '').trim(), gradedAt: new Date().toISOString() }; persist(); toast('Grade saved.'); location.hash = 'admin'; render() });
@@ -1625,7 +1624,7 @@
       document.getElementById('account-avatar').textContent = (profile.display_name || user.email || 'L').trim().charAt(0).toUpperCase();
       document.getElementById('logout-button').hidden = false;
       syncShellNavigation();
-      const hash = location.hash || '', validAdminRoute = /^#(?:admin(?:-[a-z-]+(?:\/[^/]+)?)?|schools|clubs|research|graduation|reading(?:\/[^/]+)?|book\/[^/]+|grade\/review\|[^/]+)$/.test(hash);
+      const hash = location.hash || '', validAdminRoute = /^#(?:admin(?:-[a-z-]+(?:\/[^/]+)?)?|schools|clubs|research|graduation|reading(?:\/[^/]+)?|book\/[^/]+|grade\/(?:review|final)\|[^/]+)$/.test(hash);
       const nextHash = state.role === 'admin' ? (validAdminRoute ? hash : '#admin') : (hash === '#admin' ? '#home' : (hash || '#home'));
       location.hash = nextHash;
       persist(); render();
@@ -2307,6 +2306,11 @@
         const record = state.courses[final.dataset.final];
         if (!record || !record.weeks.every(Boolean)) { final.checked = false; return; }
         const completed = final.checked;
+        if (completed && !courseFinalSubmissionForCourse(final.dataset.final)) {
+          final.checked = false;
+          toast('Submit your Final work from the Final page before completing this course.');
+          return;
+        }
         openfieldSupabase.from('course_enrollments').update({ final_completed: completed, completed_at: completed ? new Date().toISOString() : null }).eq('id', record.enrollmentId).eq('student_id', authState.user?.id).then(({ error }) => {
           if (error) throw error;
           record.final = completed; render(); toast(completed ? 'Course completed!' : 'Final completion removed.');
@@ -2317,9 +2321,12 @@
       const form = e.target.closest('form[data-form="final"]');
       if (!form) return;
       e.preventDefault(); e.stopImmediatePropagation();
-      const data = new FormData(form), link = String(data.get('link') || '').trim(), file = data.get('file')?.name || '';
-      if (!link && !file) { toast('Add a project link or attach a file.'); return; }
-      completeCourseFinal(form.dataset.course).then(() => { location.hash = 'course/' + form.dataset.course; render(); toast('Final work submitted.'); }).catch(error => { console.error('[Course progress]', error); toast('Final submission could not be completed: ' + (error.message || 'please try again.')); });
+      const button = form.querySelector('button[type="submit"]');
+      if (button) button.disabled = true;
+      saveCourseFinalSubmission(form.dataset.course, String(new FormData(form).get('link') || '').trim(), String(new FormData(form).get('note') || ''))
+        .then(() => { toast('Final work submitted.'); render(); })
+        .catch(error => { console.error('[Course Final submissions]', error); toast('Final submission could not be completed: ' + (error.message || 'please try again.')); })
+        .finally(() => { if (button) button.disabled = false; });
     }, true);
     const renderBeforeStudentCourseProgress = render;
     render = function () {
@@ -2675,6 +2682,251 @@
     };
     const applyProfileBeforeServerBookReviewGrades = applyAuthenticatedProfile;
     applyAuthenticatedProfile = function (user, profile) { if (bookReviewGradeState.userId !== user.id) clearBookReviewGrades(); applyProfileBeforeServerBookReviewGrades(user, profile); };
+    /* Course Final artifacts are submission records; enrollment completion remains separate course progress. */
+    const courseFinalSubmissionState = { userId: null, ready: false, pending: null, error: null, adminScope: false, items: [], profileNames: {} };
+    function clearCourseFinalSubmissions() {
+      courseFinalSubmissionState.userId = null;
+      courseFinalSubmissionState.ready = false;
+      courseFinalSubmissionState.pending = null;
+      courseFinalSubmissionState.error = null;
+      courseFinalSubmissionState.adminScope = false;
+      courseFinalSubmissionState.items = [];
+      courseFinalSubmissionState.profileNames = {};
+    }
+    function courseFinalSubmissionForCourse(courseId) {
+      return courseFinalSubmissionState.items.find(item => String(item.courseId) === String(courseId));
+    }
+    async function loadCourseFinalSubmissions(force = false) {
+      const userId = authState.user?.id, adminScope = state.role === 'admin';
+      if (!userId) throw new Error('Sign in to load Final submissions.');
+      if (courseFinalSubmissionState.userId === userId && courseFinalSubmissionState.adminScope === adminScope && courseFinalSubmissionState.pending) return courseFinalSubmissionState.pending;
+      if (courseFinalSubmissionState.userId === userId && courseFinalSubmissionState.adminScope === adminScope && courseFinalSubmissionState.ready && !force) return;
+      courseFinalSubmissionState.userId = userId;
+      courseFinalSubmissionState.adminScope = adminScope;
+      courseFinalSubmissionState.ready = false;
+      courseFinalSubmissionState.error = null;
+      const request = (async () => {
+        let enrollmentRows = [];
+        if (adminScope) {
+          const { data, error } = await openfieldSupabase.from('course_enrollments').select('id,course_id,student_id,academic_year');
+          if (error) throw error;
+          enrollmentRows = data || [];
+        } else {
+          enrollmentRows = Object.entries(state.courses).filter(([, value]) => value?.enrollmentId).map(([courseId, value]) => ({ id: value.enrollmentId, course_id: courseId, student_id: userId, academic_year: state.courseYears[courseId] }));
+        }
+        const enrollmentIds = enrollmentRows.map(row => row.id);
+        let subtypeRows = [];
+        if (enrollmentIds.length) {
+          const { data, error } = await openfieldSupabase.from('course_final_submissions').select('id,submission_id,enrollment_id,work_link,storage_path,original_file_name,student_note,created_at,updated_at').in('enrollment_id', enrollmentIds);
+          if (error) throw error;
+          subtypeRows = data || [];
+        }
+        const submissionIds = subtypeRows.map(row => row.submission_id);
+        let parents = [];
+        if (submissionIds.length) {
+          const { data, error } = await openfieldSupabase.from('submissions').select('id,student_id,academic_year,status,submitted_at').eq('submission_type', 'course_final').is('deleted_at', null).in('id', submissionIds);
+          if (error) throw error;
+          parents = data || [];
+        }
+        const enrollmentById = new Map(enrollmentRows.map(row => [row.id, row]));
+        const parentById = new Map(parents.map(row => [row.id, row]));
+        const profileNames = {};
+        if (adminScope) {
+          const studentIds = [...new Set(parents.map(row => row.student_id).filter(Boolean))];
+          if (studentIds.length) {
+            const { data, error } = await openfieldSupabase.from('profiles').select('id,display_name').in('id', studentIds);
+            if (error) throw error;
+            (data || []).forEach(row => { profileNames[row.id] = row.display_name || 'Student'; });
+          }
+        }
+        if (authState.user?.id !== userId || (state.role === 'admin') !== adminScope) return;
+        courseFinalSubmissionState.profileNames = profileNames;
+        courseFinalSubmissionState.items = subtypeRows.map(row => {
+          const enrollment = enrollmentById.get(row.enrollment_id), parent = parentById.get(row.submission_id);
+          if (!enrollment || !parent) return null;
+          return { courseFinalSubmissionId: row.id, submissionId: parent.id, enrollmentId: row.enrollment_id, studentId: parent.student_id, courseId: enrollment.course_id, workLink: row.work_link, storagePath: row.storage_path, originalFileName: row.original_file_name, studentNote: row.student_note || '', academicYear: parent.academic_year || enrollment.academic_year, status: parent.status, submittedAt: parent.submitted_at, createdAt: row.created_at };
+        }).filter(Boolean);
+        courseFinalSubmissionState.ready = true;
+      })().catch(error => { if (courseFinalSubmissionState.userId === userId) courseFinalSubmissionState.error = error; throw error; }).finally(() => { if (courseFinalSubmissionState.pending === request) courseFinalSubmissionState.pending = null; });
+      courseFinalSubmissionState.pending = request;
+      return request;
+    }
+    async function saveCourseFinalSubmission(courseId, workLink, studentNote) {
+      if (state.role !== 'student' || !authState.user) throw new Error('Only authenticated students can submit a Course Final.');
+      const course = courses.find(item => String(item.id) === String(courseId));
+      const enrollment = requireCourseEnrollment(courseId);
+      if (!course) throw new Error('This course is no longer available.');
+      if (!enrollment.weeks.every(Boolean)) throw new Error('Complete every course week before submitting the final task.');
+      if (!workLink) throw new Error('Add a link to your work before submitting.');
+      if (courseFinalSubmissionForCourse(courseId)) throw new Error('A Final submission already exists for this course.');
+      const submittedAt = new Date().toISOString();
+      const { data: parent, error: parentError } = await openfieldSupabase.from('submissions').insert({ student_id: authState.user.id, submission_type: 'course_final', academic_year: Number(state.courseYears[courseId] || studentYear()), status: 'submitted', submitted_at: submittedAt }).select('id,student_id,academic_year,status,submitted_at').single();
+      if (parentError) throw parentError;
+      let subtype;
+      try {
+        const { data, error } = await openfieldSupabase.from('course_final_submissions').insert({ submission_id: parent.id, enrollment_id: enrollment.enrollmentId, work_link: workLink, storage_path: null, original_file_name: null, student_note: studentNote || '' }).select('id,submission_id,enrollment_id,work_link,storage_path,original_file_name,student_note,created_at').single();
+        if (error) throw error;
+        subtype = data;
+      } catch (error) {
+        const { error: cleanupError } = await openfieldSupabase.from('submissions').delete().eq('id', parent.id).eq('student_id', authState.user.id);
+        if (cleanupError) console.error('[Course Final submissions] Parent cleanup failed:', cleanupError);
+        throw error;
+      }
+      await completeCourseFinal(courseId);
+      if (courseFinalSubmissionState.userId === authState.user.id && !courseFinalSubmissionState.adminScope) {
+        courseFinalSubmissionState.items.push({ courseFinalSubmissionId: subtype.id, submissionId: parent.id, enrollmentId: enrollment.enrollmentId, studentId: parent.student_id, courseId, workLink: subtype.work_link, storagePath: null, originalFileName: null, studentNote: subtype.student_note || '', academicYear: parent.academic_year, status: parent.status, submittedAt: parent.submitted_at, createdAt: subtype.created_at });
+      } else await loadCourseFinalSubmissions(true);
+    }
+    function courseFinalSubmissionCard(item, admin = false) {
+      const course = courses.find(value => String(value.id) === String(item.courseId));
+      const courseLabel = course ? ((course.code ? course.code + ' â€” ' : '') + course.title) : 'Unavailable course';
+      const student = courseFinalSubmissionState.profileNames[item.studentId] || 'Student';
+      return '<section class="panel' + (admin ? ' admin-panel' : '') + '"><div class="eyebrow">Submitted Final</div>' + (admin ? '<p class="sub"><strong>Student:</strong> ' + esc(student) + '<br>' : '<p class="sub">') + '<strong>Course:</strong> ' + esc(courseLabel) + '<br><strong>Submitted:</strong> ' + esc(item.submittedAt ? new Date(item.submittedAt).toLocaleDateString() : 'Unavailable') + '</p><p><strong>Work:</strong> <a href="' + esc(item.workLink) + '" target="_blank" rel="noreferrer">Open submitted work â†—</a></p><p><strong>Student note:</strong><br>' + esc(item.studentNote || 'None provided.') + '</p></section>';
+    }
+    const finalPageBeforeCourseFinalSubmissions = finalPage;
+    finalPage = function (id) {
+      const course = courses.find(item => String(item.id) === String(id));
+      if (!course) return finalPageBeforeCourseFinalSubmissions(id);
+      if (state.role === 'admin') return heading('Administrator Â· Course Finals', 'Final submissions', 'Use the Administrator overview to review submitted Course Finals.');
+      const item = courseFinalSubmissionForCourse(id);
+      const progressRecord = state.courses[id], allWeeksComplete = progressRecord?.weeks?.every(Boolean);
+      const body = item ? courseFinalSubmissionCard(item) : !allWeeksComplete ? '<section class="panel"><p class="sub">Complete every course week before submitting your Final task.</p></section>' : '<section class="panel"><form data-form="final" data-course="' + esc(id) + '" class="form-grid"><div class="field full"><label for="final-link">Link to your work</label><input id="final-link" name="link" type="url" placeholder="https://" required></div><div class="field full"><label for="final-note">Note to your tutor</label><textarea id="final-note" name="note"></textarea></div><div class="full"><button class="btn" type="submit">Submit final work â†—</button></div></form><p class="notice">File upload is not available yet. Please submit a link.</p></section>';
+      return '<a class="back" href="#course/' + esc(id) + '">â† Back to course</a>' + heading('Final submission', course.title, 'Share the work that completes this course.') + body + (item ? courseFinalGradeSummary(item.submissionId) : '');
+    };
+    const adminBeforeCourseFinalSubmissions = admin;
+    admin = function () {
+      const list = courseFinalSubmissionState.items.length ? courseFinalSubmissionState.items.map(item => courseFinalSubmissionCard(item, true)).join('') : '<section class="panel"><p class="sub">No Course Final submissions yet.</p></section>';
+      return adminBeforeCourseFinalSubmissions() + '<section class="section-head"><h2>Course Final submissions</h2></section><div class="stack">' + list + '</div>';
+    };
+    const renderBeforeCourseFinalSubmissions = render;
+    render = function () {
+      const courseFinalRoute = /^#final\/[^/]+$/.test(location.hash), adminOverview = location.hash === '#admin';
+      const needsFinals = (courseFinalRoute && (state.role === 'admin' || studentCourseProgress.ready)) || (state.role === 'admin' && adminOverview);
+      const scopeMatches = courseFinalSubmissionState.userId === authState.user?.id && courseFinalSubmissionState.adminScope === (state.role === 'admin');
+      if (needsFinals && authState.user && !scopeMatches) {
+        app.innerHTML = '<section class="panel"><h2>Loading Course Final submissions</h2><p class="sub">Loading submitted Final workâ€¦</p></section>';
+        if (!courseFinalSubmissionState.pending) loadCourseFinalSubmissions().then(() => render()).catch(error => { console.error('[Course Final submissions] Load failed:', error); app.innerHTML = '<section class="panel"><h2>Course Final submissions unavailable</h2><p class="sub">' + esc(error.message || 'Please refresh and try again.') + '</p></section>'; });
+        return;
+      }
+      renderBeforeCourseFinalSubmissions();
+    };
+    const applyProfileBeforeCourseFinalSubmissions = applyAuthenticatedProfile;
+    applyAuthenticatedProfile = function (user, profile) { if (courseFinalSubmissionState.userId !== user.id || courseFinalSubmissionState.adminScope !== (profile.role === 'admin')) clearCourseFinalSubmissions(); applyProfileBeforeCourseFinalSubmissions(user, profile); };
+    /* Course Final grades are keyed by the parent submission UUID, never by course ID. */
+    const courseFinalGradeState = { userId: null, ready: false, pending: null, adminScope: false, bySubmission: {} };
+    function clearCourseFinalGrades() { courseFinalGradeState.userId = null; courseFinalGradeState.ready = false; courseFinalGradeState.pending = null; courseFinalGradeState.adminScope = false; courseFinalGradeState.bySubmission = {}; }
+    function courseFinalGrade(submissionId) { return courseFinalGradeState.bySubmission[submissionId] || null; }
+    function courseFinalGradeSummary(submissionId) {
+      const grade = courseFinalGrade(submissionId);
+      return !grade ? '<div class="grade-panel"><strong>Final Grade</strong><p class="sub">Not yet graded</p></div>' : '<div class="grade-panel"><strong>Final Grade</strong><p><strong>' + grade.total + ' / ' + grade.possible + ' = ' + grade.percentage + '%</strong></p><p class="sub">Rubric: ' + esc(grade.rubricLabel) + '</p>' + grade.aspects.map(item => '<p class="sub">' + esc(item.name) + ': ' + item.mark + ' / ' + item.max + '</p>').join('') + (grade.feedback ? '<p><strong>Admin feedback</strong><br>' + esc(grade.feedback) + '</p>' : '') + '</div>';
+    }
+    async function loadCourseFinalGrades(force = false) {
+      const userId = authState.user?.id, adminScope = state.role === 'admin';
+      if (!userId || !courseFinalSubmissionState.ready) return;
+      if (courseFinalGradeState.userId === userId && courseFinalGradeState.pending) return courseFinalGradeState.pending;
+      if (courseFinalGradeState.userId === userId && courseFinalGradeState.ready && courseFinalGradeState.adminScope === adminScope && !force) return;
+      const submissionIds = courseFinalSubmissionState.items.map(item => item.submissionId).filter(Boolean);
+      courseFinalGradeState.userId = userId; courseFinalGradeState.ready = false; courseFinalGradeState.bySubmission = {};
+      const request = (async () => {
+        if (!submissionIds.length) { courseFinalGradeState.adminScope = adminScope; courseFinalGradeState.ready = true; return; }
+        const { data: grades, error } = await openfieldSupabase.from('grades').select('id,submission_id,rubric_id,total_marks,maximum_marks,percentage,admin_feedback,graded_at').in('submission_id', submissionIds);
+        if (error) throw error;
+        const gradeRows = grades || [], gradeIds = gradeRows.map(row => row.id);
+        let scores = [];
+        if (gradeIds.length) {
+          const result = await openfieldSupabase.from('grade_aspect_scores').select('id,grade_id,rubric_aspect_id,awarded_marks,maximum_marks').in('grade_id', gradeIds);
+          if (result.error) throw result.error;
+          scores = result.data || [];
+        }
+        const byGrade = Object.fromEntries(gradeRows.map(row => [row.id, row]));
+        scores.forEach(score => { (byGrade[score.grade_id].scores ||= []).push(score); });
+        gradeRows.forEach(grade => {
+          const rubric = rubricDefinitions[grade.rubric_id], scoreByAspect = Object.fromEntries((grade.scores || []).map(score => [score.rubric_aspect_id, score]));
+          courseFinalGradeState.bySubmission[grade.submission_id] = { id: grade.id, rubric: grade.rubric_id, rubricLabel: rubric?.label || 'Assessment rubric', total: Number(grade.total_marks), possible: Number(grade.maximum_marks), percentage: Number(grade.percentage), feedback: grade.admin_feedback || '', gradedAt: grade.graded_at, aspects: (rubric?.aspects || []).map((name, index) => { const score = scoreByAspect[rubric.aspectIds[index]]; return score ? { id: score.id, aspectId: score.rubric_aspect_id, name, mark: Number(score.awarded_marks), max: Number(score.maximum_marks) } : null; }).filter(Boolean), scores: grade.scores || [] };
+        });
+        courseFinalGradeState.adminScope = adminScope; courseFinalGradeState.ready = true;
+      })().finally(() => { if (courseFinalGradeState.pending === request) courseFinalGradeState.pending = null; });
+      courseFinalGradeState.pending = request;
+      return request;
+    }
+    function courseFinalForSubmission(submissionId) { return courseFinalSubmissionState.items.find(item => String(item.submissionId) === String(submissionId)); }
+    function courseFinalGradePage(submissionId) {
+      const finalSubmission = courseFinalForSubmission(submissionId);
+      if (!finalSubmission) return heading('Not found', 'Final submission not found.', 'This Final may no longer be available to your account.');
+      const grade = courseFinalGrade(submissionId), rubricId = grade?.rubric || defaultRubricKey('final'), rubric = rubricDefinitions[rubricId];
+      const course = courses.find(item => String(item.id) === String(finalSubmission.courseId));
+      if (!rubric) return heading('Grading unavailable', 'No active assessment rubrics.', 'Add an active rubric and aspects in Supabase before grading.');
+      if (state.role !== 'admin') return '<a class="back" href="#final/' + esc(finalSubmission.courseId) + '">â† Back to Final submission</a>' + heading('Submission grade', course?.title || 'Course Final', 'Your administratorâ€™s assessment.') + courseFinalGradeSummary(submissionId);
+      const marks = Object.fromEntries((grade?.aspects || []).map(item => [item.aspectId, item.mark]));
+      const courseLabel = course ? ((course.code ? course.code + ' â€” ' : '') + course.title) : 'Unavailable course';
+      const task = course?.finalTitle || 'Final Task', instructions = course?.finalDescription || 'Complete and submit the final project for this course.';
+      return '<a class="back" href="#admin">â† Back to Administrator overview</a>' + heading('Administrator Â· Grading', 'Grade Course Final', 'Select a rubric, award marks, and provide feedback.') + '<section class="panel admin-panel"><p class="sub"><strong>Student:</strong> ' + esc(courseFinalSubmissionState.profileNames[finalSubmission.studentId] || 'Student') + '<br><strong>Course:</strong> ' + esc(courseLabel) + '</p><div class="notice"><strong>' + esc(task) + '</strong><br>' + esc(instructions) + '</div><p><strong>Submitted work:</strong> <a href="' + esc(finalSubmission.workLink) + '" target="_blank" rel="noreferrer">Open submitted work â†—</a></p><p><strong>Student note:</strong><br>' + esc(finalSubmission.studentNote || 'None provided.') + '</p><form data-form="course-final-grade" data-submission-id="' + esc(submissionId) + '" class="stack"><div class="field"><label>Rubric</label><select name="rubric">' + Object.entries(rubricDefinitions).map(([id, item]) => '<option value="' + esc(id) + '" ' + (id === rubricId ? 'selected' : '') + '>' + esc(item.label) + '</option>').join('') + '</select></div><div class="grade-fields">' + rubric.aspects.map((name, index) => '<div class="grade-row"><label>' + esc(name) + ' <span class="sub">/ ' + rubricMaximum(rubric, index) + '</span></label><input name="mark-' + index + '" type="number" min="0" max="' + rubricMaximum(rubric, index) + '" step="0.5" value="' + Number(marks[rubric.aspectIds[index]] || 0) + '" required></div>').join('') + '</div><div class="field"><label>Feedback</label><textarea name="feedback">' + esc(grade?.feedback || '') + '</textarea></div><p class="grade-summary" data-grade-preview>Enter marks to calculate the grade.</p><button class="btn" type="submit">Save Grade</button></form></section>';
+    }
+    async function saveCourseFinalGrade(form) {
+      const submissionId = form.dataset.submissionId, finalSubmission = courseFinalForSubmission(submissionId), data = new FormData(form), rubricId = String(data.get('rubric') || ''), rubric = rubricDefinitions[rubricId];
+      if (!finalSubmission || !rubric || state.role !== 'admin' || !authState.user?.id) throw new Error('This Final submission or rubric is no longer available.');
+      const aspects = rubric.aspects.map((name, index) => ({ rubric_aspect_id: rubric.aspectIds[index], awarded_marks: Number(data.get('mark-' + index)), maximum_marks: rubricMaximum(rubric, index) }));
+      if (aspects.some(item => !Number.isFinite(item.awarded_marks) || item.awarded_marks < 0 || item.awarded_marks > item.maximum_marks)) throw new Error('Marks must be between zero and each aspect maximum.');
+      const total = aspects.reduce((sum, item) => sum + item.awarded_marks, 0), possible = aspects.reduce((sum, item) => sum + item.maximum_marks, 0), percentage = possible ? Number((total / possible * 100).toFixed(1)) : 0, existing = courseFinalGrade(submissionId);
+      const values = { rubric_id: rubricId, total_marks: total, maximum_marks: possible, percentage, admin_feedback: String(data.get('feedback') || '').trim(), graded_by: authState.user.id, graded_at: new Date().toISOString() };
+      try {
+        let gradeId;
+        if (existing) { const result = await openfieldSupabase.from('grades').update(values).eq('id', existing.id).eq('submission_id', submissionId).select('id').single(); if (result.error) throw result.error; gradeId = result.data.id; }
+        else { const result = await openfieldSupabase.from('grades').insert({ submission_id: submissionId, ...values }).select('id').single(); if (result.error) throw result.error; gradeId = result.data.id; }
+        const stale = (existing?.scores || []).filter(score => !aspects.some(item => item.rubric_aspect_id === score.rubric_aspect_id)).map(score => score.id);
+        if (stale.length) { const result = await openfieldSupabase.from('grade_aspect_scores').delete().in('id', stale); if (result.error) throw result.error; }
+        const result = await openfieldSupabase.from('grade_aspect_scores').upsert(aspects.map(item => ({ grade_id: gradeId, ...item })), { onConflict: 'grade_id,rubric_aspect_id' });
+        if (result.error) throw result.error;
+      } catch (error) { await loadCourseFinalGrades(true); throw error; }
+      await loadCourseFinalGrades(true);
+    }
+    const courseFinalSubmissionCardBeforeGrades = courseFinalSubmissionCard;
+    courseFinalSubmissionCard = function (item, admin = false) { const html = courseFinalSubmissionCardBeforeGrades(item, admin); if (!admin) return html; const grade = courseFinalGrade(item.submissionId); return html.replace('</section>', '<div class="admin-actions"><span class="sub">' + (grade ? grade.percentage + '% graded' : 'Not yet graded') + '</span> <a class="btn outline" href="#grade/final|' + encodeURIComponent(item.submissionId) + '">' + (grade ? 'Edit grade' : 'Grade Final') + '</a></div></section>'); };
+    // Supersede the legacy course-ID Final grade badge; the server grade appears on the submitted Final itself.
+    courseCard = originalCourseCardForGrades;
+    document.addEventListener('submit', e => { const form = e.target.closest('form[data-form="course-final-grade"]'); if (!form) return; e.preventDefault(); e.stopImmediatePropagation(); const button = form.querySelector('button[type="submit"]'); button.disabled = true; saveCourseFinalGrade(form).then(() => { toast('Course Final grade saved.'); render(); }).catch(error => { console.error('[Course Final grades] Save failed:', error); toast('Course Final grade could not be saved: ' + (error.message || 'please try again.')); render(); }).finally(() => { button.disabled = false; }); }, true);
+    document.addEventListener('change', e => { const select = e.target.closest('form[data-form="course-final-grade"] select[name="rubric"]'); if (!select) return; const rubric = rubricDefinitions[select.value], fields = select.form.querySelector('.grade-fields'); if (!rubric) return; fields.innerHTML = rubric.aspects.map((name, index) => '<div class="grade-row"><label>' + esc(name) + ' <span class="sub">/ ' + rubricMaximum(rubric, index) + '</span></label><input name="mark-' + index + '" type="number" min="0" max="' + rubricMaximum(rubric, index) + '" step="0.5" value="0" required></div>').join(''); }, true);
+    document.addEventListener('input', e => { const form = e.target.closest('form[data-form="course-final-grade"]'); if (!form) return; const inputs = [...form.querySelectorAll('.grade-fields input')], total = inputs.reduce((sum, input) => sum + (Number(input.value) || 0), 0), possible = inputs.reduce((sum, input) => sum + Number(input.max), 0); form.querySelector('[data-grade-preview]').textContent = 'Current grade: ' + total + ' / ' + possible + ' = ' + (possible ? (total / possible * 100).toFixed(1) : '0.0') + '%'; }, true);
+    const studentGradeAggregationReadyBeforeCourseFinalGrades = studentGradeAggregationReady;
+    studentGradeAggregationReady = function () { return studentGradeAggregationReadyBeforeCourseFinalGrades() && courseFinalSubmissionState.ready && courseFinalGradeState.ready && courseFinalSubmissionState.adminScope === false && courseFinalGradeState.adminScope === false; };
+    const studentAggregatedGradesBeforeCourseFinalGrades = studentAggregatedGrades;
+    studentAggregatedGrades = function (year) {
+      if (!studentGradeAggregationReady()) return null;
+      const existing = (studentAggregatedGradesBeforeCourseFinalGrades(year) || []).filter(item => item.type !== 'final');
+      const finals = courseFinalSubmissionState.items.map(item => { const grade = courseFinalGrade(item.submissionId); const valid = Number.isFinite(Number(grade?.percentage)) && Number(grade.percentage) >= 0 && Number(grade.percentage) <= 100; const course = courses.find(value => String(value.id) === String(item.courseId)); return valid && (!year || Number(item.academicYear || 1) === Number(year)) ? { type: 'final', id: item.submissionId, title: course?.title || 'Course Final', grade } : null; }).filter(Boolean);
+      return [...existing, ...finals];
+    };
+    const loadStudentAggregateGradesBeforeCourseFinalGrades = loadStudentAggregateGrades;
+    loadStudentAggregateGrades = function () {
+      loadStudentAggregateGradesBeforeCourseFinalGrades();
+      if (!authState.user || state.role !== 'student') return;
+      const progress = studentCourseProgress.ready ? Promise.resolve() : (studentCourseProgress.pending || loadStudentCourseProgress());
+      progress.then(() => (!courseFinalSubmissionState.ready && !courseFinalSubmissionState.pending ? loadCourseFinalSubmissions() : courseFinalSubmissionState.pending || Promise.resolve())).then(() => (!courseFinalGradeState.ready && !courseFinalGradeState.pending ? loadCourseFinalGrades() : courseFinalGradeState.pending || Promise.resolve())).then(() => render()).catch(error => console.error('[Course Final grades] Load failed:', error));
+    };
+    const renderBeforeCourseFinalGrades = render;
+    render = function () {
+      const gradeMatch = location.hash.match(/^#grade\/final\|(.+)$/), finalRoute = /^#final\/[^/]+$/.test(location.hash), adminOverview = state.role === 'admin' && location.hash === '#admin';
+      if ((gradeMatch || finalRoute) && state.role !== 'admin' && !studentCourseProgress.ready) { renderBeforeCourseFinalGrades(); return; }
+      const requiresFinalData = !!gradeMatch || adminOverview || (finalRoute && (state.role === 'admin' || studentCourseProgress.ready));
+      const finalScopeMatches = courseFinalSubmissionState.userId === authState.user?.id && courseFinalSubmissionState.adminScope === (state.role === 'admin');
+      if (requiresFinalData && authState.user && !finalScopeMatches) {
+        app.innerHTML = '<section class="panel"><h2>Loading Course Final submissions</h2><p class="sub">Loading submitted Final workâ€¦</p></section>';
+        if (!courseFinalSubmissionState.pending) loadCourseFinalSubmissions().then(() => render()).catch(error => { console.error('[Course Final grades] Submission load failed:', error); app.innerHTML = '<section class="panel"><h2>Course Final submissions unavailable</h2><p class="sub">' + esc(error.message || 'Please refresh and try again.') + '</p></section>'; });
+        return;
+      }
+      const gradeScopeMatches = courseFinalGradeState.userId === authState.user?.id && courseFinalGradeState.adminScope === (state.role === 'admin') && courseFinalGradeState.ready;
+      if (requiresFinalData && authState.user && finalScopeMatches && !gradeScopeMatches) {
+        app.innerHTML = '<section class="panel"><h2>Loading Course Final grades</h2><p class="sub">Loading Final gradesâ€¦</p></section>';
+        if (!courseFinalGradeState.pending) loadCourseFinalGrades().then(() => render()).catch(error => { console.error('[Course Final grades] Load failed:', error); app.innerHTML = '<section class="panel"><h2>Course Final grades unavailable</h2><p class="sub">' + esc(error.message || 'Please refresh and try again.') + '</p></section>'; });
+        return;
+      }
+      if (gradeMatch) { app.innerHTML = courseFinalGradePage(decodeURIComponent(gradeMatch[1])) + '<footer></footer>'; return; }
+      renderBeforeCourseFinalGrades();
+    };
+    const applyProfileBeforeCourseFinalGrades = applyAuthenticatedProfile;
+    applyAuthenticatedProfile = function (user, profile) { if (courseFinalGradeState.userId !== user.id || courseFinalGradeState.adminScope !== (profile.role === 'admin')) clearCourseFinalGrades(); applyProfileBeforeCourseFinalGrades(user, profile); };
+    if (openfieldSupabase) openfieldSupabase.auth.onAuthStateChange((event) => { if (event === 'SIGNED_OUT') clearCourseFinalGrades(); });
+    if (openfieldSupabase) openfieldSupabase.auth.onAuthStateChange((event) => { if (event === 'SIGNED_OUT') clearCourseFinalSubmissions(); });
     restoreSupabaseSession();
   </script>
 </body>
