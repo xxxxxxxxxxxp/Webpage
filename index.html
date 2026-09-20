@@ -1272,10 +1272,11 @@
     </aside>
     <div class="main">
       <header class="topbar"><span id="breadcrumb">Your campus / Overview</span>
-        <div class="role-switch"><span class="role-badge" id="role-label">Student view</span><a class="profile-link" href="#profile"><span
+        <div class="role-switch"><span class="role-badge" id="role-label">Student view</span><button class="btn outline" id="admin-notifications" type="button" hidden aria-expanded="false">Notifications <span id="admin-notification-count"></span></button><a class="profile-link" href="#profile"><span
               id="account-name">My account</span><span class="avatar" id="account-avatar">L</span></a><button
             class="btn outline" id="logout-button" type="button" hidden>Sign out</button></div>
       </header>
+      <section id="admin-notification-panel" class="panel" hidden style="position:fixed;right:24px;top:72px;z-index:20;width:min(380px,calc(100vw - 48px));max-height:70vh;overflow:auto"></section>
       <main id="app" class="content"></main>
     </div>
   </div>
@@ -1633,6 +1634,8 @@
       const admin = state.role === 'admin', overview = document.querySelector('[data-nav="home"]'), profileLink = document.querySelector('.profile-link');
       if (overview) { overview.href = admin ? '#admin' : '#home'; overview.lastChild.textContent = admin ? 'Administrator overview' : 'Overview'; }
       if (profileLink) profileLink.hidden = admin;
+      const notifications = document.getElementById('admin-notifications');
+      if (notifications) notifications.hidden = !admin;
       document.querySelectorAll('[data-admin-nav]').forEach(link => { link.hidden = !admin; });
     }
     async function verifyAdminPasscode(passcode) {
@@ -2779,15 +2782,18 @@
     }
     function courseFinalSubmissionCard(item, admin = false) {
       const course = courses.find(value => String(value.id) === String(item.courseId));
-      const courseLabel = course ? ((course.code ? course.code + ' â€” ' : '') + course.title) : 'Unavailable course';
+      const courseLabel = course ? ((course.code ? course.code + ' - ' : '') + course.title) : 'Unavailable course';
       const student = courseFinalSubmissionState.profileNames[item.studentId] || 'Student';
-      return '<section class="panel' + (admin ? ' admin-panel' : '') + '"><div class="eyebrow">Submitted Final</div>' + (admin ? '<p class="sub"><strong>Student:</strong> ' + esc(student) + '<br>' : '<p class="sub">') + '<strong>Course:</strong> ' + esc(courseLabel) + '<br><strong>Submitted:</strong> ' + esc(item.submittedAt ? new Date(item.submittedAt).toLocaleDateString() : 'Unavailable') + '</p><p><strong>Work:</strong> <a href="' + esc(item.workLink) + '" target="_blank" rel="noreferrer">Open submitted work â†—</a></p><p><strong>Student note:</strong><br>' + esc(item.studentNote || 'None provided.') + '</p></section>';
+      return '<section class="panel' + (admin ? ' admin-panel' : '') + '"><div class="eyebrow">Submitted Final</div>' + (admin ? '<p class="sub"><strong>Student:</strong> ' + esc(student) + '<br>' : '<p class="sub">') + '<strong>Course:</strong> ' + esc(courseLabel) + '<br><strong>Submitted:</strong> ' + esc(item.submittedAt ? new Date(item.submittedAt).toLocaleDateString() : 'Unavailable') + '</p><p><strong>Work:</strong> <a href="' + esc(item.workLink) + '" target="_blank" rel="noreferrer">Open submitted work</a></p><p><strong>Student note:</strong><br>' + esc(item.studentNote || 'None provided.') + '</p></section>';
     }
     const finalPageBeforeCourseFinalSubmissions = finalPage;
     finalPage = function (id) {
       const course = courses.find(item => String(item.id) === String(id));
       if (!course) return finalPageBeforeCourseFinalSubmissions(id);
-      if (state.role === 'admin') return heading('Administrator Â· Course Finals', 'Final submissions', 'Use the Administrator overview to review submitted Course Finals.');
+      if (state.role === 'admin') {
+        const items = courseFinalSubmissionState.items.filter(item => String(item.courseId) === String(id));
+        return '<a class="back" href="#schools">Back to schools and courses</a>' + heading('Administrator - Course Finals', course.title, 'Review all authorized Final submissions for this course.') + '<div class="stack">' + (items.length ? items.map(item => courseFinalSubmissionCard(item, true)).join('') : '<section class="panel"><p class="sub">No Final submissions for this course yet.</p></section>') + '</div>';
+      }
       const item = courseFinalSubmissionForCourse(id);
       const progressRecord = state.courses[id], allWeeksComplete = progressRecord?.weeks?.every(Boolean);
       const body = item ? courseFinalSubmissionCard(item) : !allWeeksComplete ? '<section class="panel"><p class="sub">Complete every course week before submitting your Final task.</p></section>' : '<section class="panel"><form data-form="final" data-course="' + esc(id) + '" class="form-grid"><div class="field full"><label for="final-link">Link to your work</label><input id="final-link" name="link" type="url" placeholder="https://" required></div><div class="field full"><label for="final-note">Note to your tutor</label><textarea id="final-note" name="note"></textarea></div><div class="full"><button class="btn" type="submit">Submit final work â†—</button></div></form><p class="notice">File upload is not available yet. Please submit a link.</p></section>';
@@ -2795,14 +2801,13 @@
     };
     const adminBeforeCourseFinalSubmissions = admin;
     admin = function () {
-      const list = courseFinalSubmissionState.items.length ? courseFinalSubmissionState.items.map(item => courseFinalSubmissionCard(item, true)).join('') : '<section class="panel"><p class="sub">No Course Final submissions yet.</p></section>';
-      return adminBeforeCourseFinalSubmissions() + '<section class="section-head"><h2>Course Final submissions</h2></section><div class="stack">' + list + '</div>';
+      return adminBeforeCourseFinalSubmissions();
     };
     const renderBeforeCourseFinalSubmissions = render;
     render = function () {
       const courseFinalRoute = /^#final\/[^/]+$/.test(location.hash), adminOverview = location.hash === '#admin';
       const needsFinals = (courseFinalRoute && (state.role === 'admin' || studentCourseProgress.ready)) || (state.role === 'admin' && adminOverview);
-      const scopeMatches = courseFinalSubmissionState.userId === authState.user?.id && courseFinalSubmissionState.adminScope === (state.role === 'admin');
+      const scopeMatches = courseFinalSubmissionState.userId === authState.user?.id && courseFinalSubmissionState.adminScope === (state.role === 'admin') && courseFinalSubmissionState.ready;
       if (needsFinals && authState.user && !scopeMatches) {
         app.innerHTML = '<section class="panel"><h2>Loading Course Final submissions</h2><p class="sub">Loading submitted Final workâ€¦</p></section>';
         if (!courseFinalSubmissionState.pending) loadCourseFinalSubmissions().then(() => render()).catch(error => { console.error('[Course Final submissions] Load failed:', error); app.innerHTML = '<section class="panel"><h2>Course Final submissions unavailable</h2><p class="sub">' + esc(error.message || 'Please refresh and try again.') + '</p></section>'; });
@@ -2858,9 +2863,9 @@
       if (!rubric) return heading('Grading unavailable', 'No active assessment rubrics.', 'Add an active rubric and aspects in Supabase before grading.');
       if (state.role !== 'admin') return '<a class="back" href="#final/' + esc(finalSubmission.courseId) + '">â† Back to Final submission</a>' + heading('Submission grade', course?.title || 'Course Final', 'Your administratorâ€™s assessment.') + courseFinalGradeSummary(submissionId);
       const marks = Object.fromEntries((grade?.aspects || []).map(item => [item.aspectId, item.mark]));
-      const courseLabel = course ? ((course.code ? course.code + ' â€” ' : '') + course.title) : 'Unavailable course';
+      const courseLabel = course ? ((course.code ? course.code + ' - ' : '') + course.title) : 'Unavailable course';
       const task = course?.finalTitle || 'Final Task', instructions = course?.finalDescription || 'Complete and submit the final project for this course.';
-      return '<a class="back" href="#admin">â† Back to Administrator overview</a>' + heading('Administrator Â· Grading', 'Grade Course Final', 'Select a rubric, award marks, and provide feedback.') + '<section class="panel admin-panel"><p class="sub"><strong>Student:</strong> ' + esc(courseFinalSubmissionState.profileNames[finalSubmission.studentId] || 'Student') + '<br><strong>Course:</strong> ' + esc(courseLabel) + '</p><div class="notice"><strong>' + esc(task) + '</strong><br>' + esc(instructions) + '</div><p><strong>Submitted work:</strong> <a href="' + esc(finalSubmission.workLink) + '" target="_blank" rel="noreferrer">Open submitted work â†—</a></p><p><strong>Student note:</strong><br>' + esc(finalSubmission.studentNote || 'None provided.') + '</p><form data-form="course-final-grade" data-submission-id="' + esc(submissionId) + '" class="stack"><div class="field"><label>Rubric</label><select name="rubric">' + Object.entries(rubricDefinitions).map(([id, item]) => '<option value="' + esc(id) + '" ' + (id === rubricId ? 'selected' : '') + '>' + esc(item.label) + '</option>').join('') + '</select></div><div class="grade-fields">' + rubric.aspects.map((name, index) => '<div class="grade-row"><label>' + esc(name) + ' <span class="sub">/ ' + rubricMaximum(rubric, index) + '</span></label><input name="mark-' + index + '" type="number" min="0" max="' + rubricMaximum(rubric, index) + '" step="0.5" value="' + Number(marks[rubric.aspectIds[index]] || 0) + '" required></div>').join('') + '</div><div class="field"><label>Feedback</label><textarea name="feedback">' + esc(grade?.feedback || '') + '</textarea></div><p class="grade-summary" data-grade-preview>Enter marks to calculate the grade.</p><button class="btn" type="submit">Save Grade</button></form></section>';
+      return '<a class="back" href="#admin">Back to Administrator overview</a>' + heading('Administrator - Grading', 'Grade Course Final', 'Select a rubric, award marks, and provide feedback.') + '<section class="panel admin-panel"><p class="sub"><strong>Student:</strong> ' + esc(courseFinalSubmissionState.profileNames[finalSubmission.studentId] || 'Student') + '<br><strong>Course:</strong> ' + esc(courseLabel) + '</p><div class="notice"><strong>' + esc(task) + '</strong><br>' + esc(instructions) + '</div><p><strong>Submitted work:</strong> <a href="' + esc(finalSubmission.workLink) + '" target="_blank" rel="noreferrer">Open submitted work</a></p><p><strong>Student note:</strong><br>' + esc(finalSubmission.studentNote || 'None provided.') + '</p><form data-form="course-final-grade" data-submission-id="' + esc(submissionId) + '" class="stack"><div class="field"><label>Rubric</label><select name="rubric">' + Object.entries(rubricDefinitions).map(([id, item]) => '<option value="' + esc(id) + '" ' + (id === rubricId ? 'selected' : '') + '>' + esc(item.label) + '</option>').join('') + '</select></div><div class="grade-fields">' + rubric.aspects.map((name, index) => '<div class="grade-row"><label>' + esc(name) + ' <span class="sub">/ ' + rubricMaximum(rubric, index) + '</span></label><input name="mark-' + index + '" type="number" min="0" max="' + rubricMaximum(rubric, index) + '" step="0.5" value="' + Number(marks[rubric.aspectIds[index]] || 0) + '" required></div>').join('') + '</div><div class="field"><label>Feedback</label><textarea name="feedback">' + esc(grade?.feedback || '') + '</textarea></div><p class="grade-summary" data-grade-preview>Enter marks to calculate the grade.</p><button class="btn" type="submit">Save Grade</button></form></section>';
     }
     async function saveCourseFinalGrade(form) {
       const submissionId = form.dataset.submissionId, finalSubmission = courseFinalForSubmission(submissionId), data = new FormData(form), rubricId = String(data.get('rubric') || ''), rubric = rubricDefinitions[rubricId];
@@ -2908,7 +2913,7 @@
       const gradeMatch = location.hash.match(/^#grade\/final\|(.+)$/), finalRoute = /^#final\/[^/]+$/.test(location.hash), adminOverview = state.role === 'admin' && location.hash === '#admin';
       if ((gradeMatch || finalRoute) && state.role !== 'admin' && !studentCourseProgress.ready) { renderBeforeCourseFinalGrades(); return; }
       const requiresFinalData = !!gradeMatch || adminOverview || (finalRoute && (state.role === 'admin' || studentCourseProgress.ready));
-      const finalScopeMatches = courseFinalSubmissionState.userId === authState.user?.id && courseFinalSubmissionState.adminScope === (state.role === 'admin');
+      const finalScopeMatches = courseFinalSubmissionState.userId === authState.user?.id && courseFinalSubmissionState.adminScope === (state.role === 'admin') && courseFinalSubmissionState.ready;
       if (requiresFinalData && authState.user && !finalScopeMatches) {
         app.innerHTML = '<section class="panel"><h2>Loading Course Final submissions</h2><p class="sub">Loading submitted Final workâ€¦</p></section>';
         if (!courseFinalSubmissionState.pending) loadCourseFinalSubmissions().then(() => render()).catch(error => { console.error('[Course Final grades] Submission load failed:', error); app.innerHTML = '<section class="panel"><h2>Course Final submissions unavailable</h2><p class="sub">' + esc(error.message || 'Please refresh and try again.') + '</p></section>'; });
@@ -2925,6 +2930,73 @@
     };
     const applyProfileBeforeCourseFinalGrades = applyAuthenticatedProfile;
     applyAuthenticatedProfile = function (user, profile) { if (courseFinalGradeState.userId !== user.id || courseFinalGradeState.adminScope !== (profile.role === 'admin')) clearCourseFinalGrades(); applyProfileBeforeCourseFinalGrades(user, profile); };
+    const coursePageBeforeAdminEnrollmentRemoval = coursePage;
+    coursePage = function (id) { const html = coursePageBeforeAdminEnrollmentRemoval(id); return state.role === 'admin' ? html.replace(/\s*<button[^>]*data-enrol="[^"]+"[^>]*>[^<]*<\/button>/g, '') : html; };
+    const adminReadingReviewsBeforeNotifications = adminReadingReviews;
+    adminReadingReviews = function (bookId = '') { return bookId ? adminReadingReviewsBeforeNotifications(bookId) : heading('Administrator - Reading programme', 'Curate books and review submissions.', 'Choose a book to inspect submitted reviews.') + readingLevels(true); };
+    const adminNotificationReadState = { adminId: null, ready: false, pending: null, error: null, readSubmissionIds: new Set(), writingIds: new Set() };
+    function clearAdminNotificationReads() { adminNotificationReadState.adminId = null; adminNotificationReadState.ready = false; adminNotificationReadState.pending = null; adminNotificationReadState.error = null; adminNotificationReadState.readSubmissionIds = new Set(); adminNotificationReadState.writingIds = new Set(); }
+    async function loadAdminNotificationReads(force = false) {
+      const adminId = authState.user?.id;
+      if (!adminId || state.role !== 'admin') return;
+      if (adminNotificationReadState.adminId === adminId && adminNotificationReadState.pending) return adminNotificationReadState.pending;
+      if (adminNotificationReadState.adminId === adminId && adminNotificationReadState.ready && !force) return;
+      adminNotificationReadState.adminId = adminId; adminNotificationReadState.ready = false; adminNotificationReadState.error = null; adminNotificationReadState.readSubmissionIds = new Set();
+      const request = (async () => {
+        const { data, error } = await openfieldSupabase.from('admin_notification_reads').select('submission_id,read_at').eq('admin_id', adminId);
+        if (error) throw error;
+        if (authState.user?.id !== adminId || state.role !== 'admin') return;
+        adminNotificationReadState.readSubmissionIds = new Set((data || []).map(row => String(row.submission_id)));
+        adminNotificationReadState.ready = true;
+      })().catch(error => { if (adminNotificationReadState.adminId === adminId) adminNotificationReadState.error = error; throw error; }).finally(() => { if (adminNotificationReadState.pending === request) adminNotificationReadState.pending = null; });
+      adminNotificationReadState.pending = request;
+      return request;
+    }
+    function adminNotificationItems() {
+      if (state.role !== 'admin' || !authState.user) return [];
+      const reviews = readingReviewState.ready && readingReviewState.adminScope ? readingReviewState.allForAdmin.map(review => { const book = state.books.find(item => String(item.id) === String(review.book_id)), grade = bookReviewGrade(review.submission_id); return { id: review.submission_id, type: 'review', bookId: review.book_id, date: review.completed_at, label: (readingReviewState.profileNames[review.student_id] || 'Student') + ' submitted a review for ' + (book?.title || 'a book') + '.', graded: !!grade, gradePercentage: Number.isFinite(Number(grade?.percentage)) ? Number(grade.percentage) : null }; }) : [];
+      const finals = courseFinalSubmissionState.ready && courseFinalSubmissionState.adminScope ? courseFinalSubmissionState.items.map(item => { const course = courses.find(value => String(value.id) === String(item.courseId)), label = course ? ((course.code ? course.code + ' - ' : '') + course.title) : 'a course', grade = courseFinalGrade(item.submissionId); return { id: item.submissionId, type: 'final', courseId: item.courseId, date: item.submittedAt, label: (courseFinalSubmissionState.profileNames[item.studentId] || 'Student') + ' submitted the Final for ' + label + '.', graded: !!grade, gradePercentage: Number.isFinite(Number(grade?.percentage)) ? Number(grade.percentage) : null }; }) : [];
+      return [...reviews, ...finals].filter(item => item.id).sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+    }
+    async function markAdminNotificationsRead(ids) {
+      const adminId = authState.user?.id;
+      if (!adminId || state.role !== 'admin' || !adminNotificationReadState.ready || adminNotificationReadState.adminId !== adminId) return false;
+      const unread = [...new Set(ids.map(String))].filter(id => id && !adminNotificationReadState.readSubmissionIds.has(id) && !adminNotificationReadState.writingIds.has(id));
+      if (!unread.length) return true;
+      unread.forEach(id => adminNotificationReadState.writingIds.add(id));
+      try {
+        const readAt = new Date().toISOString(), rows = unread.map(submissionId => ({ admin_id: adminId, submission_id: submissionId, read_at: readAt }));
+        const { error } = await openfieldSupabase.from('admin_notification_reads').upsert(rows, { onConflict: 'admin_id,submission_id' });
+        if (error) throw error;
+        if (authState.user?.id === adminId && adminNotificationReadState.adminId === adminId) unread.forEach(id => adminNotificationReadState.readSubmissionIds.add(id));
+        updateAdminNotificationUI();
+        return true;
+      } catch (error) { console.error('[Admin notifications] Mark read failed:', error); toast('Notification read state could not be saved: ' + (error.message || 'please try again.')); return false; }
+      finally { unread.forEach(id => adminNotificationReadState.writingIds.delete(id)); }
+    }
+    function markRouteNotificationsRead() {
+      if (state.role !== 'admin' || !adminNotificationReadState.ready) return;
+      const [, id] = location.hash.slice(1).split('/');
+      if (location.hash.startsWith('#reading/') && readingReviewState.ready) void markAdminNotificationsRead(readingReviewState.allForAdmin.filter(item => String(item.book_id) === String(id)).map(item => item.submission_id));
+      if (location.hash.startsWith('#final/') && courseFinalSubmissionState.ready) void markAdminNotificationsRead(courseFinalSubmissionState.items.filter(item => String(item.courseId) === String(id)).map(item => item.submissionId));
+    }
+    function updateAdminNotificationUI() {
+      const button = document.getElementById('admin-notifications'), count = document.getElementById('admin-notification-count'), panel = document.getElementById('admin-notification-panel');
+      if (!button || !count || !panel) return;
+      const admin = state.role === 'admin' && !!authState.user; button.hidden = !admin; if (!admin) { panel.hidden = true; return; }
+      const sourcesReady = readingReviewState.ready && readingReviewState.adminScope && courseFinalSubmissionState.ready && courseFinalSubmissionState.adminScope && bookReviewGradeState.ready && bookReviewGradeState.adminScope && courseFinalGradeState.ready && courseFinalGradeState.adminScope && adminNotificationReadState.ready && adminNotificationReadState.adminId === authState.user.id;
+      const items = adminNotificationItems(), seen = adminNotificationReadState.readSubmissionIds, unread = items.filter(item => !seen.has(String(item.id)));
+      count.textContent = sourcesReady ? (unread.length ? String(unread.length) : '') : '...';
+      if (panel.hidden) return;
+      if (!sourcesReady) { const error = readingReviewState.error || courseFinalSubmissionState.error || adminNotificationReadState.error; panel.innerHTML = '<p class="sub">' + esc(error ? ('Notifications unavailable: ' + (error.message || error)) : 'Loading submission notifications...') + '</p>'; return; }
+      panel.innerHTML = '<div class="section-head" style="margin-top:0"><h3>Notifications</h3><button class="btn outline" type="button" data-mark-all-notifications>Mark all as read</button></div>' + (items.length ? items.map(item => { const gradeStatus = item.graded ? 'Graded' + (item.gradePercentage === null ? '' : ' - ' + item.gradePercentage + '%') : 'Not yet graded'; return '<button type="button" data-admin-notification="' + esc(item.id) + '" data-notification-type="' + item.type + '" data-book-id="' + esc(item.bookId || '') + '" data-course-id="' + esc(item.courseId || '') + '" style="display:block;width:100%;text-align:left;padding:12px;border:0;border-top:1px solid #ddd;background:' + (seen.has(String(item.id)) ? 'transparent' : '#f4f0e8') + '"><strong>' + (item.type === 'review' ? 'New Book Review' : 'New Course Final') + '</strong><br><span class="sub">' + esc(item.label) + '<br>' + esc(gradeStatus) + '<br>' + esc(item.date ? new Date(item.date).toLocaleDateString() : '') + '</span></button>'; }).join('') : '<p class="sub">No notifications.</p>');
+    }
+    document.addEventListener('click', async event => { const bell = event.target.closest('#admin-notifications'), markAll = event.target.closest('[data-mark-all-notifications]'), item = event.target.closest('[data-admin-notification]'); const panel = document.getElementById('admin-notification-panel'); if (bell) { panel.hidden = !panel.hidden; bell.setAttribute('aria-expanded', String(!panel.hidden)); updateAdminNotificationUI(); return; } if (markAll) { await markAdminNotificationsRead(adminNotificationItems().map(entry => entry.id)); updateAdminNotificationUI(); return; } if (item) { const saved = await markAdminNotificationsRead([item.dataset.adminNotification]); if (!saved) return; if (panel) panel.hidden = true; location.hash = item.dataset.notificationType === 'review' ? '#reading/' + encodeURIComponent(item.dataset.bookId) : '#final/' + encodeURIComponent(item.dataset.courseId); updateAdminNotificationUI(); } }, true);
+    const renderBeforeAdminNotifications = render;
+    render = function () { renderBeforeAdminNotifications(); if (state.role === 'admin' && authState.user && (!adminNotificationReadState.ready || adminNotificationReadState.adminId !== authState.user.id) && !adminNotificationReadState.pending && !adminNotificationReadState.error) loadAdminNotificationReads().then(() => { markRouteNotificationsRead(); updateAdminNotificationUI(); }).catch(error => { console.error('[Admin notifications] Read-state load failed:', error); updateAdminNotificationUI(); }); else markRouteNotificationsRead(); updateAdminNotificationUI(); };
+    const applyProfileBeforeAdminNotificationReads = applyAuthenticatedProfile;
+    applyAuthenticatedProfile = function (user, profile) { if (adminNotificationReadState.adminId !== user.id || profile.role !== 'admin') clearAdminNotificationReads(); applyProfileBeforeAdminNotificationReads(user, profile); };
+    if (openfieldSupabase) openfieldSupabase.auth.onAuthStateChange((event) => { if (event === 'SIGNED_OUT') clearAdminNotificationReads(); });
     if (openfieldSupabase) openfieldSupabase.auth.onAuthStateChange((event) => { if (event === 'SIGNED_OUT') clearCourseFinalGrades(); });
     if (openfieldSupabase) openfieldSupabase.auth.onAuthStateChange((event) => { if (event === 'SIGNED_OUT') clearCourseFinalSubmissions(); });
     restoreSupabaseSession();
