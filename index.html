@@ -1264,7 +1264,6 @@
         <a href="#reading" data-nav="reading"><span class="nav-icon">▤</span>Reading programme</a>
         <a href="#research" data-nav="research"><span class="nav-icon">⌘</span>Independent research</a>
         <a href="#profile" data-nav="profile"><span class="nav-icon">○</span>My profile</a>
-        <a href="#graduation" data-nav="graduation" data-admin-nav hidden><span class="nav-icon">★</span>Graduation requirements</a>
       </nav>
       <div class="side-bottom"><strong>A little curiosity, every day.</strong><br>Make room for what you love to learn.
         <p>Self-paced learning<br>Unlimited possibilities</p>
@@ -1449,7 +1448,7 @@
     app.addEventListener('submit', e => { const form = e.target; if (!form.dataset.form || form.dataset.form === 'research') return; if (['auth-login', 'auth-signup', 'admin-passcode'].includes(form.dataset.form)) return; e.preventDefault(); const data = new FormData(form); if (form.dataset.form === 'final') { const link = String(data.get('link') || '').trim(), file = data.get('file')?.name || ''; if (!link && !file) { toast('Add a project link or attach a file.'); return } state.submissions.finals = state.submissions.finals || {}; state.submissions.finals[form.dataset.course] = { link, file, note: data.get('note') }; const course = courses.find(item => item.id === form.dataset.course), progressRecord = course && (state.courses[course.id] || { weeks: course.weeks.map(() => false), final: false }); if (progressRecord) { progressRecord.final = true; state.courses[course.id] = progressRecord } toast('Final work submitted.'); location.hash = 'course/' + form.dataset.course } if (form.dataset.form === 'review') { state.submissions.reviews = state.submissions.reviews || {}; state.submissions.reviews[form.dataset.book] = { review: data.get('review') }; toast('Book review submitted.'); location.hash = 'reading' } if (form.dataset.form === 'course') { const id = 'course-' + Date.now(); const weeks = String(data.get('weeks')).split('\n').filter(Boolean).map(line => { const parts = line.split('|'); return [(parts[0] || 'Untitled week').trim(), (parts[1] || 'Complete the assigned activity.').trim()] }); const course = { id, school: data.get('school'), title: data.get('title'), description: data.get('description'), credits: Number(data.get('credits')), club: 'builders', weeks }; courses.push(course); state.addedCourses.push(course); toast('Course added to the catalogue.'); location.hash = 'admin' } if (form.dataset.form === 'syllabus') { const c = courses.find(course => course.id === data.get('id')); if (c) { c.title = data.get('title'); c.description = data.get('description'); c.weeks = String(data.get('weeks')).split('\n').filter(Boolean).map(line => { const parts = line.split('|'); return [(parts[0] || 'Untitled week').trim(), (parts[1] || 'Complete the assigned activity.').trim()] }); state.syllabus[c.id] = { title: c.title, description: c.description, weeks: c.weeks }; toast('Syllabus updated.') } } if (form.dataset.form === 'book') { const book = { id: 'book-' + Date.now(), title: data.get('title'), author: data.get('author'), level: Number(data.get('level')) }; state.books.push(book); toast('Book added to the reading programme.'); location.hash = 'admin' } persist(); render() });
     app.addEventListener('change', e => { const el = e.target; if (el.dataset.week !== undefined) { const p = state.courses[el.dataset.course]; if (!p) return; const hadFinal = p.final; p.weeks[Number(el.dataset.week)] = el.checked; if (!el.checked) p.final = false; persist(); render(); if (hadFinal && !p.final) toast('Course reopened. Credits will return when you complete the final again.') } if (el.dataset.final) { const c = courses.find(c => c.id === el.dataset.final), p = state.courses[c.id]; if (!p || !p.weeks.every(Boolean)) return; p.final = el.checked; persist(); render(); toast(p.final ? 'Course completed! ' + c.credits + ' credits added to your account.' : 'Final unchecked. Course credits removed.') } });
     app.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; if (b.dataset.attend) { const [clubId, date] = b.dataset.attend.split('|'); state.attendance[clubId] = state.attendance[clubId] || {}; state.attendance[clubId][date] = true; persist(); render(); toast('Attendance recorded.') } if (b.dataset.deleteSchool) { schools = schools.filter(s => s.id !== b.dataset.deleteSchool); persist(); render(); toast('School deleted.') } if (b.dataset.deleteClub) { const id = b.dataset.deleteClub; clubs = clubs.filter(c => c.id !== id); state.clubs = state.clubs.filter(c => c !== id); courses.forEach(c => { if (c.club === id) c.club = '' }); persist(); render(); toast('Club deleted.') } if (b.dataset.deleteBook) { state.books = state.books.filter(book => book.id !== b.dataset.deleteBook); persist(); render(); toast('Book deleted.') } });
-    app.addEventListener('change', e => { const el = e.target; if (el.dataset.attendanceDay) { const id = el.dataset.attendanceDay; const club = clubs.find(c => c.id === id); const days = state.attendanceDays[id] || []; const next = el.checked ? [...new Set([...days, el.value])] : days.filter(day => day !== el.value); if (next.length > (club?.frequency || 1)) { el.checked = false; toast('Choose no more than ' + club.frequency + ' attendance days.'); return } state.attendanceDays[id] = next; persist(); render() } if (el.dataset.final) { const c = courses.find(c => c.id === el.dataset.final); if (el.checked && c?.club && !state.clubs.includes(c.club)) { state.clubs.push(c.club); persist(); toast('Course completed. Club membership added automatically.') } } });
+    app.addEventListener('change', e => { const el = e.target; if (el.dataset.attendanceDay) { const id = el.dataset.attendanceDay; const club = clubs.find(c => c.id === id); const days = state.attendanceDays[id] || []; const next = el.checked ? [...new Set([...days, el.value])] : days.filter(day => day !== el.value); if (next.length > (club?.frequency || 1)) { el.checked = false; toast('Choose no more than ' + club.frequency + ' attendance days.'); return } state.attendanceDays[id] = next; persist(); render() } });
     app.addEventListener('submit', e => { const form = e.target; if (!form.dataset.form || !['school-admin-create', 'course-admin-create'].includes(form.dataset.form)) return; e.preventDefault(); const data = new FormData(form); const weeks = String(data.get('weeks') || '').split('\n').filter(Boolean).map(line => { const parts = line.split('|'); return [(parts[0] || 'Untitled week').trim(), (parts[1] || 'Complete the assigned activity.').trim()] }); if (form.dataset.form === 'school-admin-create') { schools.push({ id: 'school-' + Date.now(), name: data.get('name'), description: data.get('description'), symbol: data.get('symbol'), color: '' }); toast('School added.'); location.hash = 'schools' } if (form.dataset.form === 'course-admin-create') { const course = { id: 'course-' + Date.now(), school: data.get('school'), title: data.get('title'), description: data.get('description'), credits: Number(data.get('credits')), club: data.get('club') || '', weeks }; courses.push(course); state.addedCourses.push(course); toast('Course added.'); location.hash = 'schools' } persist(); render() });
     app.addEventListener('submit', e => { const form = e.target; if (!['club-admin-create', 'club-edit'].includes(form.dataset.form)) return; e.preventDefault(); const data = new FormData(form); const details = { name: data.get('name'), description: data.get('description'), color: '', frequency: Number(data.get('frequency')) || 1 }; if (form.dataset.form === 'club-admin-create') { clubs.push({ id: 'club-' + Date.now(), symbol: '✳', ...details }); toast('Club added.') } else { const club = clubs.find(item => item.id === form.dataset.id); if (club) Object.assign(club, details); toast('Club updated.') } persist(); location.hash = 'clubs'; render() });
     app.addEventListener('click', e => { const add = e.target.closest('[data-add-resource]'); if (add) { const container = document.getElementById('additional-resources'); const index = container.querySelectorAll('[data-resource-row]').length; container.insertAdjacentHTML('beforeend', resourceFields([{ title: '', link: '' }]).replace(/resource-title-0/g, 'resource-title-' + index).replace(/resource-link-0/g, 'resource-link-' + index)); const empty = document.querySelector('[data-no-resources]'); if (empty) empty.hidden = true } const remove = e.target.closest('[data-remove-resource]'); if (remove) { remove.closest('[data-resource-row]').remove(); } });
@@ -1573,7 +1572,7 @@
     function yearProgress(year = studentYear()) { const req = state.graduationRequirements['year' + year] || state.graduationRequirements.year1, attendance = attendanceForYear(year), average = averageGrade(year); return { req, credits: yearCredits(year), books: yearBooks(year), research: yearResearch(year), attendance, average, complete: yearCredits(year) >= Number(req.credits) && yearBooks(year) >= Number(req.books) && yearResearch(year) >= Number(req.research) && attendance.weeks >= Number(req.attendanceWeeks) && attendance.percentage >= Number(req.attendancePercentage) && average !== null && average >= Number(req.minimumAverageGrade) } }
     function gradeDetails(grade) { return '<div class="grade-panel"><strong>Final Grade: ' + grade.percentage + '%</strong><p class="sub">Rubric: ' + esc(rubricDefinitions[grade.rubric]?.label || grade.rubric || 'Assessment rubric') + '</p>' + grade.aspects.map(aspect => '<p class="sub">' + esc(aspect.name) + ': ' + aspect.mark + ' / ' + aspect.max + '</p>').join('') + '<p><strong>Total marks:</strong> ' + grade.total + ' / ' + grade.possible + '</p>' + (grade.feedback ? '<p><strong>Admin feedback</strong><br>' + esc(grade.feedback) + '</p>' : '') + '</div>' }
     function gradesPage() { const groups = { final: 'Course Finals', review: 'Book Reviews', research: 'Independent Research', commitment: 'Club Commitments' }, items = Object.entries(state.grades || {}).filter(([ref]) => submissionForGrade(ref)); const titleFor = (type, id) => type === 'final' ? courses.find(c => c.id === id)?.title || id : type === 'review' ? state.books.find(b => b.id === id)?.title || id : type === 'research' ? state.research.find(r => r.id === id)?.title || id : state.clubCommitmentSubmissions[id]?.link || 'Club commitment'; const average = averageGrade(); return '<a class="back" href="#profile">← Back to My Profile</a>' + heading('My profile', 'Grades', 'Your administrator-assigned grades, rubrics, and feedback.') + '<section class="panel"><h2>Average Grade: ' + (average === null ? '—' : average + '%') + '</h2><p class="sub">Calculated from all current graded submissions.</p></section>' + Object.entries(groups).map(([type, label]) => { const group = items.filter(([ref]) => ref.split(':')[0] === type); return group.length ? '<section class="panel"><h2>' + label + '</h2>' + group.map(([ref, grade]) => '<article class="submission"><h3>' + esc(titleFor(type, ref.split(':').slice(1).join(':'))) + '</h3>' + gradeDetails(grade) + '</article>').join('') + '</section>' : '' }).join('') + (items.length ? '' : '<section class="panel"><p class="sub">No grades have been assigned yet.</p></section>') }
-    function graduationProfile() { const year = studentYear(), p = yearProgress(year), req = p.req, average = p.average; const status = (done) => done ? 'Complete' : 'In progress'; const cards = [['Credits', p.credits + ' / ' + Number(req.credits), p.credits >= Number(req.credits)], ['Books', p.books + ' / ' + Number(req.books), p.books >= Number(req.books)], ['Independent Research', p.research + ' / ' + Number(req.research), p.research >= Number(req.research)], ['Attendance', p.attendance.percentage + '% · ' + p.attendance.weeks + ' / ' + Number(req.attendanceWeeks) + ' weeks', p.attendance.percentage >= Number(req.attendancePercentage) && p.attendance.weeks >= Number(req.attendanceWeeks)], ['Grades', (average === null ? 'Average: —' : 'Average: ' + average + '%') + '<br><small>Required: ' + Number(req.minimumAverageGrade) + '%</small>', average !== null && average >= Number(req.minimumAverageGrade)]].map(([label, value, done]) => '<div class="stat"><small>' + label + '</small><strong>' + value + '</strong><span>' + status(done) + '</span></div>').join(''); const action = p.complete ? (year < 4 ? '<button class="btn" data-progress-year>Progress to Year ' + (year + 1) + '</button>' : '<div class="panel"><h2>Graduation complete</h2><p class="sub">You have completed all Year 4 requirements.</p></div>') : ''; return '<section class="section-head"><h2>Year ' + year + '</h2><span class="sub">Current Graduation Requirements</span></section><div class="stats" style="grid-template-columns:repeat(5,1fr)">' + cards + '</div><section class="panel"><div class="section-head" style="margin-top:0"><h2>Grades</h2><a class="btn outline" href="#grades">View all grades →</a></div><p class="sub">' + (average === null ? 'Average: —' : 'Average Grade: ' + average + '%') + ' · Required: ' + Number(req.minimumAverageGrade) + '%</p>' + action + '</section>' }
+    function graduationProfile() { const year = studentYear(), p = yearProgress(year), req = p.req, average = p.average; const status = (done) => done ? 'Complete' : 'In progress'; const cards = [['Credits', p.credits + ' / ' + Number(req.credits), p.credits >= Number(req.credits)], ['Books', p.books + ' / ' + Number(req.books), p.books >= Number(req.books)], ['Independent Research', p.research + ' / ' + Number(req.research), p.research >= Number(req.research)], ['Attendance', p.attendance.percentage + '% · ' + p.attendance.weeks + ' / ' + Number(req.attendanceWeeks) + ' weeks', p.attendance.percentage >= Number(req.attendancePercentage) && p.attendance.weeks >= Number(req.attendanceWeeks)], ['Grades', (average === null ? 'Average: —' : 'Average: ' + average + '%') + '<br><small>Required: ' + Number(req.minimumAverageGrade) + '%</small>', average !== null && average >= Number(req.minimumAverageGrade)]].map(([label, value, done]) => '<div class="stat"><small>' + label + '</small><strong>' + value + '</strong><span>' + status(done) + '</span></div>').join(''); const action = p.complete ? (year < 4 ? '<button class="btn" data-progress-year>Progress to Year ' + (year + 1) + '</button>' : '<div class="panel"><h2>Graduation complete</h2><p class="sub">You have completed all Year 4 requirements.</p></div>') : ''; return '<section class="section-head"><h2>Year ' + year + '</h2><a class="sub" href="#graduation">Current Graduation Requirements</a></section><div class="stats" style="grid-template-columns:repeat(5,1fr)">' + cards + '</div><section class="panel"><div class="section-head" style="margin-top:0"><h2>Grades</h2><a class="btn outline" href="#grades">View all grades →</a></div><p class="sub">' + (average === null ? 'Average: —' : 'Average Grade: ' + average + '%') + ' · Required: ' + Number(req.minimumAverageGrade) + '%</p>' + action + '</section>' }
     const profileBeforeYearProgress = profile; profile = function () { return profileBeforeYearProgress() + graduationProfile() };
     /* Render the requirement page explicitly so every year uses its own saved minimum. */
     graduationPage = function () { const years = [['year1', 'Year 1'], ['year2', 'Year 2'], ['year3', 'Year 3'], ['year4', 'Year 4']]; return heading('Openfield milestones', 'Graduation Requirements', 'Shared requirements for every learner, updated by the Administrator.') + '<div class="graduation-grid">' + years.map(([id, label]) => { const item = state.graduationRequirements[id]; return '<section class="panel graduation-card"><h3>' + label + '</h3>' + (state.role === 'admin' ? '<form data-form="graduation" data-year="' + id + '" class="graduation-editor"><div class="field"><label>Credits required</label><input name="credits" type="number" min="0" value="' + Number(item.credits) + '" required></div><div class="field"><label>Books required</label><input name="books" type="number" min="0" value="' + Number(item.books) + '" required></div><div class="field"><label>Independent research required</label><input name="research" type="number" min="0" value="' + Number(item.research) + '" required></div><div class="field"><label>Attendance percentage</label><input name="attendancePercentage" type="number" min="0" max="100" value="' + Number(item.attendancePercentage) + '" required></div><div class="field"><label>Attendance weeks</label><input name="attendanceWeeks" type="number" min="0" value="' + Number(item.attendanceWeeks) + '" required></div><div class="field"><label>Minimum Average Grade</label><input name="minimumAverageGrade" type="number" min="0" max="100" step="0.1" value="' + Number(item.minimumAverageGrade) + '" required></div><button class="btn">Save ' + label + '</button></form>' : '<div class="stack"><div class="requirement-box">Credits<strong>' + Number(item.credits) + ' Credits</strong></div><div class="requirement-box">Books<strong>' + Number(item.books) + ' Books</strong></div><div class="requirement-box">Independent Research<strong>' + Number(item.research) + ' Independent Research</strong></div><div class="requirement-box">Attendance<strong>' + Number(item.attendancePercentage) + '% for ' + Number(item.attendanceWeeks) + ' Weeks</strong></div><div class="requirement-box">Minimum Average Grade<strong>' + Number(item.minimumAverageGrade) + '%</strong></div></div>') + '</section>' }).join('') + '</div>' }
@@ -1625,7 +1624,7 @@
       document.getElementById('account-avatar').textContent = (profile.display_name || user.email || 'L').trim().charAt(0).toUpperCase();
       document.getElementById('logout-button').hidden = false;
       syncShellNavigation();
-      const hash = location.hash || '', validAdminRoute = /^#(?:admin(?:-[a-z-]+(?:\/[^/]+)?)?|schools|clubs|research|graduation|reading(?:\/[^/]+)?|book\/[^/]+|grade\/(?:review|final)\|[^/]+)$/.test(hash);
+      const hash = location.hash || '', validAdminRoute = /^#(?:admin(?:-[a-z-]+(?:\/[^/]+)?)?|schools|clubs|research|graduation|reading(?:\/[^/]+)?|book\/[^/]+|grade\/(?:review|final|commitment)\|[^/]+)$/.test(hash);
       const nextHash = state.role === 'admin' ? (validAdminRoute ? hash : '#admin') : (hash === '#admin' ? '#home' : (hash || '#home'));
       location.hash = nextHash;
       persist(); render();
@@ -2287,6 +2286,7 @@
       const { error } = await openfieldSupabase.from('course_enrollments').update({ final_completed: true, completed_at: new Date().toISOString() }).eq('id', record.enrollmentId).eq('student_id', authState.user.id);
       if (error) throw error;
       record.final = true;
+      await autoEnrollLinkedCourseClubs(courseId);
     }
     // Capture phase prevents legacy browser-local course handlers from running.
     document.addEventListener('click', e => {
@@ -2314,9 +2314,9 @@
           toast('Submit your Final work from the Final page before completing this course.');
           return;
         }
-        openfieldSupabase.from('course_enrollments').update({ final_completed: completed, completed_at: completed ? new Date().toISOString() : null }).eq('id', record.enrollmentId).eq('student_id', authState.user?.id).then(({ error }) => {
+        openfieldSupabase.from('course_enrollments').update({ final_completed: completed, completed_at: completed ? new Date().toISOString() : null }).eq('id', record.enrollmentId).eq('student_id', authState.user?.id).then(async ({ error }) => {
           if (error) throw error;
-          record.final = completed; render(); toast(completed ? 'Course completed!' : 'Final completion removed.');
+          record.final = completed; if (completed) await autoEnrollLinkedCourseClubs(final.dataset.final); render(); toast(completed ? 'Course completed!' : 'Final completion removed.');
         }).catch(error => { console.error('[Course progress]', error); final.checked = !completed; toast('Final completion could not be saved: ' + (error.message || 'please try again.')); });
       }
     }, true);
@@ -2996,9 +2996,602 @@
     render = function () { renderBeforeAdminNotifications(); if (state.role === 'admin' && authState.user && (!adminNotificationReadState.ready || adminNotificationReadState.adminId !== authState.user.id) && !adminNotificationReadState.pending && !adminNotificationReadState.error) loadAdminNotificationReads().then(() => { markRouteNotificationsRead(); updateAdminNotificationUI(); }).catch(error => { console.error('[Admin notifications] Read-state load failed:', error); updateAdminNotificationUI(); }); else markRouteNotificationsRead(); updateAdminNotificationUI(); };
     const applyProfileBeforeAdminNotificationReads = applyAuthenticatedProfile;
     applyAuthenticatedProfile = function (user, profile) { if (adminNotificationReadState.adminId !== user.id || profile.role !== 'admin') clearAdminNotificationReads(); applyProfileBeforeAdminNotificationReads(user, profile); };
+
+    // Server-backed Club memberships, commitment instances, and submissions.
+    const clubMembershipState = { ready: false, loading: false, error: null, studentId: null, adminScope: false, items: [], byClubId: {} };
+    const clubCommitmentInstanceState = { ready: false, loading: false, error: null, studentId: null, adminScope: false, items: [] };
+    const clubCommitmentSubmissionState = { ready: false, loading: false, error: null, studentId: null, adminScope: false, items: [], profileNames: {} };
+    let clubCommitmentLoadPromise = null;
+    function clearClubCommitmentServerState() {
+      Object.assign(clubMembershipState, { ready: false, loading: false, error: null, studentId: null, adminScope: false, items: [], byClubId: {} });
+      Object.assign(clubCommitmentInstanceState, { ready: false, loading: false, error: null, studentId: null, adminScope: false, items: [] });
+      Object.assign(clubCommitmentSubmissionState, { ready: false, loading: false, error: null, studentId: null, adminScope: false, items: [], profileNames: {} });
+      clubCommitmentLoadPromise = null;
+      if (typeof clearClubCommitmentGrades === 'function') clearClubCommitmentGrades();
+      if (typeof clearClubCommitmentAwards === 'function') clearClubCommitmentAwards();
+      if (typeof clearClubAttendance === 'function') clearClubAttendance();
+    }
+    function clubCommitmentDefinition(id) {
+      const row = (catalogue.rows.club_commitment_definitions || []).find(item => String(item.id) === String(id));
+      if (!row) return null;
+      return { id: row.id, name: row.name, submission: row.instructions || '', frequency: frequencyLabels[row.frequency] || row.frequency, credits: Number(row.default_credits || 0), active: row.active !== false };
+    }
+    function mapClubCommitmentInstance(row, membership) {
+      if (!membership) return null;
+      return { instanceId: row.id, membershipId: row.membership_id, studentId: membership.student_id, clubId: membership.club_id, commitmentDefinitionId: row.commitment_definition_id, periodKey: row.period_key, periodStart: row.period_start, periodEnd: row.period_end, dueAt: row.due_at, status: row.status };
+    }
+    function mapClubCommitmentSubmission(row, instance, parent) {
+      if (!instance) return null;
+      return { clubCommitmentSubmissionId: row.id, submissionId: row.submission_id, commitmentInstanceId: row.commitment_instance_id, membershipId: instance.membershipId, studentId: instance.studentId, clubId: instance.clubId, commitmentDefinitionId: instance.commitmentDefinitionId, evidenceLink: row.evidence_link, storagePath: row.storage_path, originalFileName: row.original_file_name, completedAt: row.completed_at, awarded: row.awarded === true, awardedCredits: Number(row.awarded_credits || 0), academicYear: Number(parent?.academic_year || 0), submittedAt: parent?.submitted_at || row.completed_at };
+    }
+    function currentCommitmentPeriod(definition, joinedAt) {
+      const today = isoDate(new Date());
+      return commitmentPeriods(definition.frequency, joinedAt).find(period => isoDate(period.end) >= today) || null;
+    }
+    async function ensureCurrentClubCommitmentInstances(memberships) {
+      if (state.role !== 'student') return;
+      const existingKeys = new Set(clubCommitmentInstanceState.items.map(item => [item.membershipId, item.commitmentDefinitionId, item.periodKey].join('|'))), rows = [];
+      memberships.filter(item => !item.left_at).forEach(membership => {
+        const club = clubs.find(item => String(item.id) === String(membership.club_id));
+        (club?.commitments || []).forEach(definition => {
+          const period = currentCommitmentPeriod(definition, membership.joined_at);
+          const key = period && [membership.id, definition.id, period.key].join('|');
+          if (period && !existingKeys.has(key)) rows.push({ membership_id: membership.id, commitment_definition_id: definition.id, period_key: period.key, period_start: isoDate(period.start), period_end: isoDate(period.end), due_at: null, status: 'open' });
+        });
+      });
+      if (!rows.length) return;
+      const { error } = await openfieldSupabase.from('club_commitment_instances').upsert(rows, { onConflict: 'membership_id,commitment_definition_id,period_key', ignoreDuplicates: true });
+      if (error) throw error;
+    }
+    async function loadClubCommitmentServerState(force = false) {
+      const userId = authState.user?.id, adminScope = state.role === 'admin';
+      if (!userId || !openfieldSupabase) return;
+      if (!force && clubMembershipState.ready && clubMembershipState.studentId === userId && clubMembershipState.adminScope === adminScope) return;
+      if (clubCommitmentLoadPromise) return clubCommitmentLoadPromise;
+      [clubMembershipState, clubCommitmentInstanceState, clubCommitmentSubmissionState].forEach(cache => { cache.loading = true; cache.error = null; });
+      const request = (async () => {
+        let membershipQuery = openfieldSupabase.from('club_memberships').select('id,student_id,club_id,joined_at,left_at');
+        if (!adminScope) membershipQuery = membershipQuery.eq('student_id', userId).is('left_at', null);
+        const { data: membershipRows, error: membershipError } = await membershipQuery;
+        if (membershipError) throw membershipError;
+        if (authState.user?.id !== userId || (state.role === 'admin') !== adminScope) return;
+        const memberships = membershipRows || [], membershipById = Object.fromEntries(memberships.map(item => [String(item.id), item]));
+        const membershipIds = memberships.map(item => item.id);
+        let instanceRows = [];
+        if (membershipIds.length) {
+          const { data, error } = await openfieldSupabase.from('club_commitment_instances').select('id,membership_id,commitment_definition_id,period_key,period_start,period_end,due_at,status').in('membership_id', membershipIds);
+          if (error) throw error;
+          instanceRows = data || [];
+        }
+        clubCommitmentInstanceState.items = instanceRows.map(row => mapClubCommitmentInstance(row, membershipById[String(row.membership_id)])).filter(item => item && item.studentId);
+        await ensureCurrentClubCommitmentInstances(memberships);
+        if (!adminScope && membershipIds.length) {
+          const { data, error } = await openfieldSupabase.from('club_commitment_instances').select('id,membership_id,commitment_definition_id,period_key,period_start,period_end,due_at,status').in('membership_id', membershipIds);
+          if (error) throw error;
+          instanceRows = data || [];
+          clubCommitmentInstanceState.items = instanceRows.map(row => mapClubCommitmentInstance(row, membershipById[String(row.membership_id)])).filter(item => item && item.studentId);
+        }
+        const instanceById = Object.fromEntries(clubCommitmentInstanceState.items.map(item => [String(item.instanceId), item])), instanceIds = clubCommitmentInstanceState.items.map(item => item.instanceId);
+        let subtypeRows = [];
+        if (instanceIds.length) {
+          const { data, error } = await openfieldSupabase.from('club_commitment_submissions').select('id,submission_id,commitment_instance_id,evidence_link,storage_path,original_file_name,completed_at,awarded,awarded_credits').in('commitment_instance_id', instanceIds);
+          if (error) throw error;
+          subtypeRows = data || [];
+        }
+        const submissionIds = subtypeRows.map(item => item.submission_id), parentsById = {};
+        if (submissionIds.length) {
+          const { data, error } = await openfieldSupabase.from('submissions').select('id,student_id,academic_year,status,submitted_at').eq('submission_type', 'club_commitment').in('id', submissionIds);
+          if (error) throw error;
+          (data || []).forEach(item => { parentsById[String(item.id)] = item; });
+        }
+        const submissions = subtypeRows.map(row => mapClubCommitmentSubmission(row, instanceById[String(row.commitment_instance_id)], parentsById[String(row.submission_id)])).filter(item => item && item.studentId && parentsById[String(item.submissionId)]);
+        const profileNames = {};
+        if (adminScope) {
+          const studentIds = [...new Set(memberships.map(item => item.student_id).filter(Boolean))];
+          if (studentIds.length) {
+            const { data, error } = await openfieldSupabase.from('profiles').select('id,display_name').in('id', studentIds);
+            if (error) throw error;
+            (data || []).forEach(item => { profileNames[item.id] = item.display_name || 'Student'; });
+          }
+        }
+        if (authState.user?.id !== userId || (state.role === 'admin') !== adminScope) return;
+        Object.assign(clubMembershipState, { ready: true, studentId: userId, adminScope, items: memberships, byClubId: Object.fromEntries(memberships.filter(item => !item.left_at && (!adminScope || item.student_id === userId)).map(item => [String(item.club_id), item])) });
+        Object.assign(clubCommitmentInstanceState, { ready: true, studentId: userId, adminScope });
+        Object.assign(clubCommitmentSubmissionState, { ready: true, studentId: userId, adminScope, items: submissions, profileNames });
+        if (!adminScope) state.clubs = Object.keys(clubMembershipState.byClubId);
+      })().catch(error => {
+        console.error('[Club commitments] Load failed:', error);
+        if (authState.user?.id === userId && (state.role === 'admin') === adminScope) [clubMembershipState, clubCommitmentInstanceState, clubCommitmentSubmissionState].forEach(cache => { cache.error = error; });
+        throw error;
+      }).finally(() => {
+        if (authState.user?.id === userId && (state.role === 'admin') === adminScope) [clubMembershipState, clubCommitmentInstanceState, clubCommitmentSubmissionState].forEach(cache => { cache.loading = false; });
+        if (clubCommitmentLoadPromise === request) clubCommitmentLoadPromise = null;
+      });
+      clubCommitmentLoadPromise = request;
+      return request;
+    }
+    async function setServerClubMembership(clubId, join) {
+      if (state.role !== 'student' || !authState.user) throw new Error('A Student account is required.');
+      const existing = clubMembershipState.items.find(item => String(item.club_id) === String(clubId) && String(item.student_id) === String(authState.user.id));
+      if (join) {
+        const now = new Date().toISOString();
+        const { error } = await openfieldSupabase.from('club_memberships').upsert({ student_id: authState.user.id, club_id: clubId, joined_at: now, left_at: null }, { onConflict: 'student_id,club_id' });
+        if (error) throw error;
+      } else {
+        if (!existing || existing.left_at) return;
+        const { error } = await openfieldSupabase.from('club_memberships').update({ left_at: new Date().toISOString() }).eq('id', existing.id).eq('student_id', authState.user.id);
+        if (error) throw error;
+      }
+      clearClubCommitmentServerState();
+      await loadClubCommitmentServerState(true);
+    }
+    function linkedClubIdsForCourse(courseId) {
+      const course = courses.find(item => String(item.id) === String(courseId));
+      if (!course?.club) return [];
+      return [...new Set(clubs.filter(club => String(club.id) === String(course.club)).map(club => club.id))];
+    }
+    async function ensureAutomaticClubMembership(clubId, studentId) {
+      const findMembership = async () => {
+        const result = await openfieldSupabase.from('club_memberships').select('id,student_id,club_id,joined_at,left_at').eq('student_id', studentId).eq('club_id', clubId).limit(1).maybeSingle();
+        if (result.error) throw result.error;
+        return result.data || null;
+      };
+      let membership = await findMembership();
+      if (membership && !membership.left_at) return { changed: false, membership };
+      if (membership) {
+        const result = await openfieldSupabase.from('club_memberships').update({ left_at: null }).eq('id', membership.id).eq('student_id', studentId).select('id,student_id,club_id,joined_at,left_at').single();
+        if (result.error) throw result.error;
+        return { changed: true, membership: result.data };
+      }
+      const now = new Date().toISOString(), result = await openfieldSupabase.from('club_memberships').insert({ student_id: studentId, club_id: clubId, joined_at: now, left_at: null }).select('id,student_id,club_id,joined_at,left_at').single();
+      if (!result.error) return { changed: true, membership: result.data };
+      if (result.error.code !== '23505') throw result.error;
+      membership = await findMembership();
+      if (!membership) throw result.error;
+      if (!membership.left_at) return { changed: false, membership };
+      const reactivation = await openfieldSupabase.from('club_memberships').update({ left_at: null }).eq('id', membership.id).eq('student_id', studentId).select('id,student_id,club_id,joined_at,left_at').single();
+      if (reactivation.error) throw reactivation.error;
+      return { changed: true, membership: reactivation.data };
+    }
+    async function autoEnrollLinkedCourseClubs(courseId) {
+      if (state.role !== 'student' || !authState.user?.id) return false;
+      const linkedClubIds = linkedClubIdsForCourse(courseId);
+      if (!linkedClubIds.length) return true;
+      const studentId = authState.user.id;
+      try {
+        let refreshNeeded = false;
+        for (const clubId of linkedClubIds) {
+          const result = await ensureAutomaticClubMembership(clubId, studentId);
+          refreshNeeded ||= result.changed || !clubMembershipState.byClubId[String(clubId)];
+        }
+        if (refreshNeeded) await loadClubCommitmentServerState(true);
+        return true;
+      } catch (error) {
+        console.error('[Course completion] Automatic Club enrollment failed:', error);
+        toast('Course completed, but linked Club enrollment could not be saved. You can join the Club manually.');
+        return false;
+      }
+    }
+    async function submitServerClubCommitment(instanceId, evidenceLink) {
+      const userId = authState.user?.id, instance = clubCommitmentInstanceState.items.find(item => String(item.instanceId) === String(instanceId)), membership = instance && clubMembershipState.items.find(item => String(item.id) === String(instance.membershipId));
+      if (!userId || state.role !== 'student') throw new Error('A Student account is required.');
+      if (!instance || !membership || membership.left_at || String(membership.student_id) !== String(userId)) throw new Error('This commitment is not part of an active Club membership.');
+      if (!evidenceLink) throw new Error('Enter an evidence URL.');
+      if (clubCommitmentSubmissionState.items.some(item => String(item.commitmentInstanceId) === String(instanceId))) throw new Error('This commitment has already been submitted.');
+      const now = new Date().toISOString();
+      const { data: parent, error: parentError } = await openfieldSupabase.from('submissions').insert({ student_id: userId, submission_type: 'club_commitment', academic_year: studentYear(), status: 'submitted', submitted_at: now }).select('id').single();
+      if (parentError) throw parentError;
+      const { error: subtypeError } = await openfieldSupabase.from('club_commitment_submissions').insert({ submission_id: parent.id, commitment_instance_id: instance.instanceId, evidence_link: evidenceLink, storage_path: null, original_file_name: null, completed_at: now, awarded: false, awarded_credits: 0 });
+      if (subtypeError) {
+        const { error: cleanupError } = await openfieldSupabase.from('submissions').delete().eq('id', parent.id).eq('student_id', userId);
+        if (cleanupError) console.error('[Club commitments] Parent cleanup failed:', cleanupError);
+        throw subtypeError;
+      }
+      const { error: statusError } = await openfieldSupabase.from('club_commitment_instances').update({ status: 'submitted' }).eq('id', instance.instanceId).eq('membership_id', membership.id);
+      clearClubCommitmentServerState();
+      try { await loadClubCommitmentServerState(true); } catch (reloadError) { console.error('[Club commitments] Reload failed:', reloadError); }
+      if (statusError) throw statusError;
+    }
+    function serverCommitmentCard(instance) {
+      const definition = clubCommitmentDefinition(instance.commitmentDefinitionId), submission = clubCommitmentSubmissionState.items.find(item => String(item.commitmentInstanceId) === String(instance.instanceId));
+      if (!definition) return '';
+      const period = new Date(instance.periodStart + 'T12:00:00').toLocaleDateString() + ' – ' + new Date(instance.periodEnd + 'T12:00:00').toLocaleDateString();
+      return '<article class="commitment-card ' + (submission ? 'completed' : '') + '"><h3>' + esc(definition.name) + '</h3><div class="commitment-meta"><span>' + esc(definition.frequency) + '</span><span>' + esc(period) + '</span></div>' + (submission ? '<p><strong>✓ Submitted</strong></p><p><a href="' + esc(submission.evidenceLink) + '" target="_blank" rel="noopener">View evidence ↗</a></p><p class="sub">Submitted ' + esc(submission.submittedAt ? new Date(submission.submittedAt).toLocaleDateString() : '') + '<br>Credit status: ' + (submission.awarded ? 'Approved<br>Credits awarded: ' + submission.awardedCredits : 'Pending approval') + '</p>' + clubCommitmentGradeSummary(submission.submissionId) : '<form data-form="server-club-commitment" data-instance-id="' + esc(instance.instanceId) + '" class="form-grid"><div class="field full"><label>Evidence URL</label><input name="link" type="url" placeholder="https://" required></div><p class="sub full">File upload is not available yet. Submit a shareable evidence URL.</p><button class="btn" type="submit">Submit</button></form>') + '</article>';
+    }
+    function serverClubDetail(id) {
+      const club = clubs.find(item => String(item.id) === String(id));
+      if (!club) return heading('Not found', 'Club not found.', 'Return to Clubs & societies.');
+      if (state.role === 'admin') {
+        const submissions = clubCommitmentSubmissionState.items.filter(item => String(item.clubId) === String(id));
+        return '<a class="back" href="#clubs">← Back to clubs & societies</a>' + heading('Clubs & societies', club.name, club.description) + '<section class="panel admin-panel"><div class="eyebrow">Submitted commitments</div>' + (submissions.length ? submissions.map(item => { const definition = clubCommitmentDefinition(item.commitmentDefinitionId), instance = clubCommitmentInstanceState.items.find(value => String(value.instanceId) === String(item.commitmentInstanceId)), grade = clubCommitmentGrade(item.submissionId); return '<article class="submission"><h3>' + esc(clubCommitmentSubmissionState.profileNames[item.studentId] || 'Student') + '</h3><p><strong>' + esc(definition?.name || 'Commitment') + '</strong></p><p class="sub">Period: ' + esc(instance ? (instance.periodStart + ' – ' + instance.periodEnd) : '') + '<br>Submitted: ' + esc(item.submittedAt ? new Date(item.submittedAt).toLocaleDateString() : '') + '<br>Credit: ' + (item.awarded ? ('Approved · ' + item.awardedCredits + ' credits') : 'Pending approval') + '<br>Grade: ' + (grade ? grade.percentage + '%' : 'Not yet graded') + '</p><a href="' + esc(item.evidenceLink) + '" target="_blank" rel="noopener">View evidence ↗</a><div class="admin-actions"><a class="btn outline" href="#grade/commitment|' + encodeURIComponent(item.submissionId) + '">' + (grade ? 'Edit Grade' : 'Grade') + '</a>' + clubCommitmentApprovalControls(item) + '</div></article>'; }).join('') : '<p class="sub">No commitment submissions yet.</p>') + '</section>';
+      }
+      const membership = clubMembershipState.byClubId[String(id)], joined = !!membership, records = membership ? (clubAttendanceState.recordsByMembership[String(membership.id)] || {}) : {}, dates = Array.from({ length: 7 }, (_, i) => { const date = new Date(); date.setDate(date.getDate() - i); return date.toISOString().slice(0, 10); });
+      const instances = joined ? clubCommitmentInstanceState.items.filter(item => String(item.membershipId) === String(membership.id) && (item.periodEnd >= isoDate(new Date()) || clubCommitmentSubmissionState.items.some(submission => String(submission.commitmentInstanceId) === String(item.instanceId)))) : [];
+      return '<a class="back" href="#clubs">← Back to clubs & societies</a>' + heading('Clubs & societies', club.name, 'Learning together, with commitments you can complete at your own pace.') + '<section class="detail"><section class="panel"><div class="eyebrow">Club details</div><div class="aside-row"><span>Frequency</span><strong>' + club.frequency + ' times per week</strong></div>' + (joined ? '<div class="submission"><h2>Choose your attendance days</h2><p class="sub">Select up to ' + club.frequency + ' days each week.</p><div class="attendance-days">' + attendanceDays(club) + '</div><h2>My attendance</h2><div class="attendance-history">' + dates.map(date => '<div class="aside-row"><span>' + new Date(date + 'T12:00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) + '</span><button class="btn ' + (records[date] ? 'outline' : '') + '" data-attend="' + club.id + '|' + date + '">' + (records[date] ? 'Attended ✓' : 'Mark attended') + '</button></div>').join('') + '</div></div>' : '<p class="notice">Join this club to view commitments and record attendance.</p>') + '</section><aside>' + (joined ? '<div class="panel"><div class="eyebrow">Commitments</div><div class="commitment-list">' + (instances.length ? instances.map(serverCommitmentCard).join('') : '<p class="sub">No current commitments.</p>') + '</div></div>' : '') + '<div class="panel"><div class="eyebrow">Your membership</div><button class="btn ' + (joined ? 'outline' : '') + '" data-club="' + club.id + '">' + (joined ? 'Leave club' : 'Join club') + '</button></div></aside></section>';
+    }
+    clubDetail = serverClubDetail;
+    credits = baseCreditsWithCommitments;
+    deadlinesSection = function () {
+      if (!clubCommitmentInstanceState.ready || !clubCommitmentSubmissionState.ready) return '<div class="section-head"><h2>Deadlines</h2></div><section class="panel"><p class="sub">Loading Club deadlines…</p></section>';
+      const submitted = new Set(clubCommitmentSubmissionState.items.map(item => String(item.commitmentInstanceId))), today = isoDate(new Date());
+      const items = clubCommitmentInstanceState.items.filter(item => String(item.studentId) === String(authState.user?.id) && item.periodEnd >= today && !submitted.has(String(item.instanceId))).sort((a, b) => String(a.periodEnd).localeCompare(String(b.periodEnd))).slice(0, 20);
+      return '<div class="section-head"><h2>Deadlines</h2></div><section class="panel"><div class="deadline-list">' + (items.length ? items.map(item => { const definition = clubCommitmentDefinition(item.commitmentDefinitionId), club = clubs.find(value => String(value.id) === String(item.clubId)), days = Math.max(0, Math.ceil((new Date(item.periodEnd + 'T23:59:59') - new Date()) / 86400000)); return '<a class="deadline-item" href="#club/' + esc(item.clubId) + '"><span><strong>' + esc(definition?.name || 'Club commitment') + '</strong><small>' + esc(club?.name || 'Club') + ' · ' + esc(definition?.frequency || '') + '</small></span><span class="pill">Due in ' + days + ' days</span></a>'; }).join('') : '<p class="sub">No outstanding club commitment deadlines.</p>') + '</div></section>';
+    };
+    window.addEventListener('click', event => {
+      const button = event.target.closest('[data-club]');
+      if (!button || state.role !== 'student') return;
+      event.preventDefault(); event.stopImmediatePropagation();
+      const joined = !!clubMembershipState.byClubId[String(button.dataset.club)];
+      button.disabled = true;
+      setServerClubMembership(button.dataset.club, !joined).then(() => { render(); toast(joined ? 'You have left the club.' : 'You joined the club.'); }).catch(error => { console.error('[Club membership]', error); toast('Club membership could not be saved: ' + (error.message || 'please try again.')); button.disabled = false; });
+    }, true);
+    window.addEventListener('submit', event => {
+      const form = event.target.closest('form[data-form="server-club-commitment"]');
+      if (!form) return;
+      event.preventDefault(); event.stopImmediatePropagation();
+      const button = form.querySelector('button[type="submit"]'), evidenceLink = String(new FormData(form).get('link') || '').trim();
+      button.disabled = true;
+      submitServerClubCommitment(form.dataset.instanceId, evidenceLink).then(() => { render(); toast('Commitment submitted. Award review is pending.'); }).catch(error => { console.error('[Club commitments] Submission failed:', error); toast('Commitment submission failed: ' + (error.message || 'please try again.')); button.disabled = false; });
+    }, true);
+    const renderBeforeServerClubCommitments = render;
+    render = function () {
+      renderBeforeServerClubCommitments();
+      const route = location.hash.slice(1).split('/')[0], needsClubData = route === 'clubs' || route === 'club' || route === 'profile';
+      if (!needsClubData || !authState.user) return;
+      const scopeMatches = clubMembershipState.studentId === authState.user.id && clubMembershipState.adminScope === (state.role === 'admin');
+      if (scopeMatches && clubMembershipState.ready && clubCommitmentInstanceState.ready && clubCommitmentSubmissionState.ready) return;
+      const error = clubMembershipState.error || clubCommitmentInstanceState.error || clubCommitmentSubmissionState.error;
+      app.innerHTML = heading('Clubs & societies', error ? 'Club data unavailable' : 'Loading Club data…', error ? (error.message || String(error)) : 'Loading memberships, commitments, and submissions from the server.');
+      if (!error && !clubCommitmentLoadPromise) loadClubCommitmentServerState().then(() => render()).catch(() => render());
+    };
+    const applyProfileBeforeClubCommitments = applyAuthenticatedProfile;
+    applyAuthenticatedProfile = function (user, profile) { if (clubMembershipState.studentId !== user.id || clubMembershipState.adminScope !== (profile.role === 'admin')) clearClubCommitmentServerState(); applyProfileBeforeClubCommitments(user, profile); };
+
+    // Club Commitment grades use the real parent submission UUID.
+    const clubCommitmentGradeState = { userId: null, ready: false, pending: null, error: null, adminScope: false, bySubmission: {} };
+    function clearClubCommitmentGrades() { Object.assign(clubCommitmentGradeState, { userId: null, ready: false, pending: null, error: null, adminScope: false, bySubmission: {} }); }
+    function clubCommitmentGrade(submissionId) { return clubCommitmentGradeState.bySubmission[String(submissionId)] || null; }
+    function clubCommitmentGradeSummary(submissionId) {
+      const grade = clubCommitmentGrade(submissionId);
+      return !grade ? '<div class="grade-panel"><strong>Grade</strong><p class="sub">Not yet graded</p></div>' : '<div class="grade-panel"><strong>Grade: ' + grade.percentage + '%</strong><p><strong>' + grade.total + ' / ' + grade.possible + '</strong></p><p class="sub">Rubric: ' + esc(grade.rubricLabel) + '</p>' + grade.aspects.map(item => '<p class="sub">' + esc(item.name) + ': ' + item.mark + ' / ' + item.max + '</p>').join('') + (grade.feedback ? '<p><strong>Admin feedback</strong><br>' + esc(grade.feedback) + '</p>' : '') + '</div>';
+    }
+    async function loadClubCommitmentGrades(force = false) {
+      const userId = authState.user?.id, adminScope = state.role === 'admin';
+      if (!userId || !clubCommitmentSubmissionState.ready) return;
+      if (clubCommitmentGradeState.userId === userId && clubCommitmentGradeState.pending) return clubCommitmentGradeState.pending;
+      if (!force && clubCommitmentGradeState.userId === userId && clubCommitmentGradeState.ready && clubCommitmentGradeState.adminScope === adminScope) return;
+      const submissionIds = clubCommitmentSubmissionState.items.map(item => item.submissionId).filter(Boolean);
+      Object.assign(clubCommitmentGradeState, { userId, ready: false, error: null, adminScope, bySubmission: {} });
+      const request = (async () => {
+        if (!submissionIds.length) { clubCommitmentGradeState.ready = true; return; }
+        const { data: gradeRows, error } = await openfieldSupabase.from('grades').select('id,submission_id,rubric_id,total_marks,maximum_marks,percentage,admin_feedback,graded_at').in('submission_id', submissionIds);
+        if (error) throw error;
+        const grades = gradeRows || [], gradeIds = grades.map(item => item.id), scores = [];
+        if (gradeIds.length) {
+          const result = await openfieldSupabase.from('grade_aspect_scores').select('id,grade_id,rubric_aspect_id,awarded_marks,maximum_marks').in('grade_id', gradeIds);
+          if (result.error) throw result.error;
+          scores.push(...(result.data || []));
+        }
+        const scoresByGrade = {};
+        scores.forEach(score => { (scoresByGrade[score.grade_id] ||= []).push(score); });
+        const bySubmission = {};
+        grades.forEach(grade => {
+          const rubric = rubricDefinitions[grade.rubric_id], gradeScores = scoresByGrade[grade.id] || [], scoreByAspect = Object.fromEntries(gradeScores.map(score => [String(score.rubric_aspect_id), score]));
+          bySubmission[String(grade.submission_id)] = { id: grade.id, rubric: grade.rubric_id, rubricLabel: rubric?.label || 'Assessment rubric', total: Number(grade.total_marks), possible: Number(grade.maximum_marks), percentage: Number(grade.percentage), feedback: grade.admin_feedback || '', gradedAt: grade.graded_at, aspects: (rubric?.aspects || []).map((name, index) => { const score = scoreByAspect[String(rubric.aspectIds[index])]; return score ? { id: score.id, aspectId: score.rubric_aspect_id, name, mark: Number(score.awarded_marks), max: Number(score.maximum_marks) } : null; }).filter(Boolean), scores: gradeScores };
+        });
+        if (authState.user?.id !== userId || (state.role === 'admin') !== adminScope) return;
+        clubCommitmentGradeState.bySubmission = bySubmission;
+        clubCommitmentGradeState.ready = true;
+      })().catch(error => { if (authState.user?.id === userId && (state.role === 'admin') === adminScope) clubCommitmentGradeState.error = error; throw error; }).finally(() => { if (clubCommitmentGradeState.pending === request) clubCommitmentGradeState.pending = null; });
+      clubCommitmentGradeState.pending = request;
+      return request;
+    }
+    function clubCommitmentForSubmission(submissionId) { return clubCommitmentSubmissionState.items.find(item => String(item.submissionId) === String(submissionId)); }
+    function clubCommitmentGradePage(submissionId) {
+      const submission = clubCommitmentForSubmission(submissionId);
+      if (!submission) return heading('Not found', 'Commitment submission not found.', 'This submission may no longer be available to your account.');
+      const instance = clubCommitmentInstanceState.items.find(item => String(item.instanceId) === String(submission.commitmentInstanceId)), definition = clubCommitmentDefinition(submission.commitmentDefinitionId), club = clubs.find(item => String(item.id) === String(submission.clubId));
+      const grade = clubCommitmentGrade(submissionId), rubricId = grade?.rubric || defaultRubricKey('commitment'), rubric = rubricDefinitions[rubricId];
+      if (state.role !== 'admin') return '<a class="back" href="#club/' + esc(submission.clubId) + '">← Back to Club</a>' + heading('Submission grade', definition?.name || 'Club commitment', 'Your administrator’s assessment.') + clubCommitmentGradeSummary(submissionId);
+      if (!rubric) return heading('Grading unavailable', 'No active assessment rubrics.', 'Add an active rubric and aspects in Supabase before grading.');
+      const marks = Object.fromEntries((grade?.aspects || []).map(item => [String(item.aspectId), item.mark]));
+      return '<a class="back" href="#club/' + esc(submission.clubId) + '">← Back to Club</a>' + heading('Administrator · Grading', 'Grade Club Commitment', 'Select a rubric, award marks, and provide feedback.') + '<section class="panel admin-panel"><p class="sub"><strong>Student:</strong> ' + esc(clubCommitmentSubmissionState.profileNames[submission.studentId] || 'Student') + '<br><strong>Club:</strong> ' + esc(club?.name || 'Unavailable Club') + '<br><strong>Commitment:</strong> ' + esc(definition?.name || 'Unavailable commitment') + '<br><strong>Period:</strong> ' + esc(instance ? instance.periodStart + ' – ' + instance.periodEnd : 'Unavailable') + '<br><strong>Submitted:</strong> ' + esc(submission.submittedAt ? new Date(submission.submittedAt).toLocaleDateString() : 'Unavailable') + '<br><strong>Award status:</strong> ' + (submission.awarded ? ('Awarded ' + submission.awardedCredits + ' credits') : 'Pending / Not awarded') + '</p><p><strong>Evidence:</strong> <a href="' + esc(submission.evidenceLink) + '" target="_blank" rel="noopener">Open evidence ↗</a></p><form data-form="club-commitment-grade" data-submission-id="' + esc(submissionId) + '" class="stack"><div class="field"><label>Rubric</label><select name="rubric">' + Object.entries(rubricDefinitions).map(([id, item]) => '<option value="' + esc(id) + '" ' + (id === rubricId ? 'selected' : '') + '>' + esc(item.label) + '</option>').join('') + '</select></div><div class="grade-fields">' + rubric.aspects.map((name, index) => '<div class="grade-row"><label>' + esc(name) + ' <span class="sub">/ ' + rubricMaximum(rubric, index) + '</span></label><input name="mark-' + index + '" type="number" min="0" max="' + rubricMaximum(rubric, index) + '" step="0.5" value="' + Number(marks[String(rubric.aspectIds[index])] || 0) + '" required></div>').join('') + '</div><div class="field"><label>Feedback</label><textarea name="feedback">' + esc(grade?.feedback || '') + '</textarea></div><p class="grade-summary" data-grade-preview>Enter marks to calculate the grade.</p><button class="btn" type="submit">Save Grade</button></form></section>';
+    }
+    async function saveClubCommitmentGrade(form) {
+      const submissionId = form.dataset.submissionId, submission = clubCommitmentForSubmission(submissionId), data = new FormData(form), rubricId = String(data.get('rubric') || ''), rubric = rubricDefinitions[rubricId];
+      if (!submission || !rubric || state.role !== 'admin' || !authState.user?.id) throw new Error('This Club Commitment submission or rubric is no longer available.');
+      const aspects = rubric.aspects.map((name, index) => ({ rubric_aspect_id: rubric.aspectIds[index], awarded_marks: Number(data.get('mark-' + index)), maximum_marks: rubricMaximum(rubric, index) }));
+      if (!aspects.length || aspects.some(item => !item.rubric_aspect_id || !Number.isFinite(item.awarded_marks) || item.awarded_marks < 0 || item.awarded_marks > item.maximum_marks)) throw new Error('Complete every aspect with marks between zero and its maximum.');
+      const total = aspects.reduce((sum, item) => sum + item.awarded_marks, 0), possible = aspects.reduce((sum, item) => sum + item.maximum_marks, 0), percentage = possible > 0 ? Number((total / possible * 100).toFixed(1)) : 0, existing = clubCommitmentGrade(submissionId), now = new Date().toISOString();
+      const values = { rubric_id: rubricId, total_marks: total, maximum_marks: possible, percentage, admin_feedback: String(data.get('feedback') || '').trim(), graded_by: authState.user.id, graded_at: now, updated_at: now };
+      try {
+        let gradeId;
+        if (existing) { const result = await openfieldSupabase.from('grades').update(values).eq('id', existing.id).eq('submission_id', submissionId).select('id').single(); if (result.error) throw result.error; gradeId = result.data.id; }
+        else { const result = await openfieldSupabase.from('grades').insert({ submission_id: submissionId, ...values }).select('id').single(); if (result.error) throw result.error; gradeId = result.data.id; }
+        const stale = (existing?.scores || []).filter(score => !aspects.some(item => String(item.rubric_aspect_id) === String(score.rubric_aspect_id))).map(score => score.id);
+        if (stale.length) { const result = await openfieldSupabase.from('grade_aspect_scores').delete().in('id', stale); if (result.error) throw result.error; }
+        const result = await openfieldSupabase.from('grade_aspect_scores').upsert(aspects.map(item => ({ grade_id: gradeId, ...item })), { onConflict: 'grade_id,rubric_aspect_id' });
+        if (result.error) throw result.error;
+      } catch (error) { await loadClubCommitmentGrades(true); throw error; }
+      await loadClubCommitmentGrades(true);
+    }
+    document.addEventListener('submit', event => { const form = event.target.closest('form[data-form="club-commitment-grade"]'); if (!form) return; event.preventDefault(); event.stopImmediatePropagation(); const button = form.querySelector('button[type="submit"]'); button.disabled = true; saveClubCommitmentGrade(form).then(() => { toast('Club Commitment grade saved.'); render(); }).catch(error => { console.error('[Club Commitment grades] Save failed:', error); toast('Club Commitment grade could not be saved: ' + (error.message || 'please try again.')); render(); }).finally(() => { button.disabled = false; }); }, true);
+    document.addEventListener('change', event => { const select = event.target.closest('form[data-form="club-commitment-grade"] select[name="rubric"]'); if (!select) return; const rubric = rubricDefinitions[select.value], fields = select.form.querySelector('.grade-fields'); if (!rubric) return; fields.innerHTML = rubric.aspects.map((name, index) => '<div class="grade-row"><label>' + esc(name) + ' <span class="sub">/ ' + rubricMaximum(rubric, index) + '</span></label><input name="mark-' + index + '" type="number" min="0" max="' + rubricMaximum(rubric, index) + '" step="0.5" value="0" required></div>').join(''); }, true);
+    document.addEventListener('input', event => { const form = event.target.closest('form[data-form="club-commitment-grade"]'); if (!form) return; const inputs = [...form.querySelectorAll('.grade-fields input')], total = inputs.reduce((sum, input) => sum + (Number(input.value) || 0), 0), possible = inputs.reduce((sum, input) => sum + Number(input.max), 0), preview = form.querySelector('[data-grade-preview]'); if (preview) preview.textContent = 'Current grade: ' + total + ' / ' + possible + ' = ' + (possible ? (total / possible * 100).toFixed(1) : '0.0') + '%'; }, true);
+    const studentGradeAggregationReadyBeforeClubCommitmentGrades = studentGradeAggregationReady;
+    studentGradeAggregationReady = function () { return studentGradeAggregationReadyBeforeClubCommitmentGrades() && clubCommitmentSubmissionState.ready && clubCommitmentGradeState.ready && clubCommitmentSubmissionState.adminScope === false && clubCommitmentGradeState.adminScope === false; };
+    const studentAggregatedGradesBeforeClubCommitmentGrades = studentAggregatedGrades;
+    studentAggregatedGrades = function (year) {
+      if (!studentGradeAggregationReady()) return null;
+      const existing = (studentAggregatedGradesBeforeClubCommitmentGrades(year) || []).filter(item => item.type !== 'commitment');
+      const commitments = clubCommitmentSubmissionState.items.map(item => { const grade = clubCommitmentGrade(item.submissionId), valid = Number.isFinite(Number(grade?.percentage)) && Number(grade.percentage) >= 0 && Number(grade.percentage) <= 100, definition = clubCommitmentDefinition(item.commitmentDefinitionId), club = clubs.find(value => String(value.id) === String(item.clubId)); return valid && (!year || Number(item.academicYear) === Number(year)) ? { type: 'commitment', id: item.submissionId, title: (club?.name ? club.name + ' · ' : '') + (definition?.name || 'Club Commitment'), grade } : null; }).filter(Boolean);
+      return [...existing, ...commitments];
+    };
+    const loadStudentAggregateGradesBeforeClubCommitmentGrades = loadStudentAggregateGrades;
+    loadStudentAggregateGrades = function () {
+      loadStudentAggregateGradesBeforeClubCommitmentGrades();
+      if (!authState.user || state.role !== 'student') return;
+      const submissionsReady = clubCommitmentSubmissionState.ready ? Promise.resolve() : (clubCommitmentLoadPromise || loadClubCommitmentServerState());
+      submissionsReady.then(() => (!clubCommitmentGradeState.ready && !clubCommitmentGradeState.pending ? loadClubCommitmentGrades() : clubCommitmentGradeState.pending || Promise.resolve())).then(() => render()).catch(error => console.error('[Club Commitment grades] Aggregate load failed:', error));
+    };
+    const renderBeforeClubCommitmentGrades = render;
+    render = function () {
+      const gradeMatch = location.hash.match(/^#grade\/commitment\|(.+)$/), route = location.hash.slice(1).split('/')[0], needsGrades = !!gradeMatch || route === 'clubs' || route === 'club' || route === 'profile';
+      if (!needsGrades || !authState.user) { renderBeforeClubCommitmentGrades(); return; }
+      const adminScope = state.role === 'admin', submissionScopeMatches = clubCommitmentSubmissionState.ready && clubCommitmentSubmissionState.studentId === authState.user.id && clubCommitmentSubmissionState.adminScope === adminScope;
+      if (!submissionScopeMatches) {
+        if (!gradeMatch) { renderBeforeClubCommitmentGrades(); return; }
+        app.innerHTML = '<section class="panel"><h2>Loading Club Commitment submission</h2><p class="sub">Loading the selected submission…</p></section>';
+        if (!clubCommitmentLoadPromise) loadClubCommitmentServerState().then(() => render()).catch(error => { console.error('[Club Commitment grades] Submission load failed:', error); app.innerHTML = '<section class="panel"><h2>Club Commitment unavailable</h2><p class="sub">' + esc(error.message || 'Please refresh and try again.') + '</p></section>'; });
+        return;
+      }
+      const gradeScopeMatches = clubCommitmentGradeState.ready && clubCommitmentGradeState.userId === authState.user.id && clubCommitmentGradeState.adminScope === adminScope;
+      if (!gradeScopeMatches) {
+        app.innerHTML = '<section class="panel"><h2>Loading Club Commitment grades</h2><p class="sub">Loading persisted grades…</p></section>';
+        if (!clubCommitmentGradeState.pending) loadClubCommitmentGrades().then(() => render()).catch(error => { console.error('[Club Commitment grades] Load failed:', error); app.innerHTML = '<section class="panel"><h2>Grades unavailable</h2><p class="sub">' + esc(error.message || 'Please refresh and try again.') + '</p></section>'; });
+        return;
+      }
+      if (gradeMatch) { app.innerHTML = clubCommitmentGradePage(decodeURIComponent(gradeMatch[1])) + '<footer></footer>'; return; }
+      renderBeforeClubCommitmentGrades();
+    };
+    const applyProfileBeforeClubCommitmentGrades = applyAuthenticatedProfile;
+    applyAuthenticatedProfile = function (user, profile) { if (clubCommitmentGradeState.userId !== user.id || clubCommitmentGradeState.adminScope !== (profile.role === 'admin')) clearClubCommitmentGrades(); applyProfileBeforeClubCommitmentGrades(user, profile); };
+
+    // Authoritative Club Commitment credit awards, keyed by subtype submission UUID.
+    const clubCommitmentAwardState = { userId: null, ready: false, pending: null, error: null, adminScope: false, items: [], byCommitmentSubmission: {} };
+    function clearClubCommitmentAwards() { Object.assign(clubCommitmentAwardState, { userId: null, ready: false, pending: null, error: null, adminScope: false, items: [], byCommitmentSubmission: {} }); }
+    function clubCommitmentAward(commitmentSubmissionId) { return clubCommitmentAwardState.byCommitmentSubmission[String(commitmentSubmissionId)] || null; }
+    async function loadClubCommitmentAwards(force = false) {
+      const userId = authState.user?.id, adminScope = state.role === 'admin';
+      if (!userId || (adminScope && !clubCommitmentSubmissionState.ready)) return;
+      if (clubCommitmentAwardState.userId === userId && clubCommitmentAwardState.pending) return clubCommitmentAwardState.pending;
+      if (!force && clubCommitmentAwardState.userId === userId && clubCommitmentAwardState.ready && clubCommitmentAwardState.adminScope === adminScope) return;
+      Object.assign(clubCommitmentAwardState, { userId, ready: false, error: null, adminScope, items: [], byCommitmentSubmission: {} });
+      const request = (async () => {
+        let query = openfieldSupabase.from('credit_awards').select('id,student_id,academic_year,credit_amount,source_type,commitment_submission_id,note,awarded_at').eq('source_type', 'club_commitment');
+        if (adminScope) {
+          const subtypeIds = clubCommitmentSubmissionState.items.map(item => item.clubCommitmentSubmissionId).filter(Boolean);
+          if (!subtypeIds.length) { clubCommitmentAwardState.ready = true; return; }
+          query = query.in('commitment_submission_id', subtypeIds);
+        } else query = query.eq('student_id', userId);
+        const { data, error } = await query;
+        if (error) throw error;
+        if (authState.user?.id !== userId || (state.role === 'admin') !== adminScope) return;
+        const items = data || [], byCommitmentSubmission = {};
+        items.forEach(item => { if (item.commitment_submission_id && !byCommitmentSubmission[String(item.commitment_submission_id)]) byCommitmentSubmission[String(item.commitment_submission_id)] = item; });
+        Object.assign(clubCommitmentAwardState, { items, byCommitmentSubmission, ready: true });
+      })().catch(error => { if (authState.user?.id === userId && (state.role === 'admin') === adminScope) clubCommitmentAwardState.error = error; throw error; }).finally(() => { if (clubCommitmentAwardState.pending === request) clubCommitmentAwardState.pending = null; });
+      clubCommitmentAwardState.pending = request;
+      return request;
+    }
+    function clubCommitmentApprovalControls(submission) {
+      const grade = clubCommitmentGrade(submission.submissionId), award = clubCommitmentAward(submission.clubCommitmentSubmissionId);
+      if (submission.awarded) return award ? '<span class="sub">Already approved</span>' : '<span class="notice">Credit award record missing</span>';
+      if (award) return '<span class="notice">Credit award exists; approval status needs reconciliation</span>';
+      return '<button class="btn" type="button" data-approve-club-credit="' + esc(submission.clubCommitmentSubmissionId) + '" ' + (grade ? '' : 'disabled title="Grade this submission before approving it for credit."') + '>Approve for Credit</button>' + (grade ? '' : '<span class="sub">Grade this submission before approving it for credit.</span>');
+    }
+    async function reloadClubApprovalState() {
+      await loadClubCommitmentServerState(true);
+      await Promise.all([loadClubCommitmentGrades(true), loadClubCommitmentAwards(true)]);
+    }
+    async function approveClubCommitmentForCredit(commitmentSubmissionId) {
+      if (state.role !== 'admin' || !authState.user?.id) throw new Error('Administrator access is required.');
+      await reloadClubApprovalState();
+      let submission = clubCommitmentSubmissionState.items.find(item => String(item.clubCommitmentSubmissionId) === String(commitmentSubmissionId));
+      if (!submission) throw new Error('This Club Commitment submission is no longer available.');
+      if (!clubCommitmentGrade(submission.submissionId)) throw new Error('Grade this submission before approving it for credit.');
+      const definition = clubCommitmentDefinition(submission.commitmentDefinitionId), instance = clubCommitmentInstanceState.items.find(item => String(item.instanceId) === String(submission.commitmentInstanceId));
+      const creditAmount = Number(definition?.credits);
+      if (!definition || !Number.isFinite(creditAmount) || creditAmount < 0) throw new Error('The commitment does not have a valid configured credit amount.');
+      if (!submission.studentId) throw new Error('The commitment Student could not be resolved.');
+      if (!Number.isFinite(Number(submission.academicYear)) || Number(submission.academicYear) < 1) throw new Error('The submission academic year could not be resolved.');
+      if (!instance) throw new Error('The commitment instance could not be resolved.');
+      let award = clubCommitmentAward(submission.clubCommitmentSubmissionId);
+      if (submission.awarded) return { alreadyApproved: true };
+      const now = new Date().toISOString();
+      let duplicateAwardRace = false;
+      try {
+        const claim = await openfieldSupabase.from('club_commitment_submissions').update({ awarded: true, awarded_credits: creditAmount, completed_at: now }).eq('id', submission.clubCommitmentSubmissionId).eq('submission_id', submission.submissionId).eq('awarded', false).select('id').maybeSingle();
+        if (claim.error) throw claim.error;
+        if (!claim.data) { await reloadClubApprovalState(); return { alreadyApproved: true }; }
+        const instanceResult = await openfieldSupabase.from('club_commitment_instances').update({ status: 'completed' }).eq('id', instance.instanceId).eq('membership_id', instance.membershipId);
+        if (instanceResult.error) throw instanceResult.error;
+        if (!award) {
+          const existingResult = await openfieldSupabase.from('credit_awards').select('id,student_id,academic_year,credit_amount,source_type,commitment_submission_id,note,awarded_at').eq('source_type', 'club_commitment').eq('commitment_submission_id', submission.clubCommitmentSubmissionId).limit(1);
+          if (existingResult.error) throw existingResult.error;
+          award = existingResult.data?.[0] || null;
+        }
+        if (!award) {
+          const note = (definition.name || 'Club Commitment') + (instance.periodStart && instance.periodEnd ? ' · ' + instance.periodStart + ' – ' + instance.periodEnd : '');
+          const awardResult = await openfieldSupabase.from('credit_awards').insert({ student_id: submission.studentId, academic_year: Number(submission.academicYear), credit_amount: creditAmount, source_type: 'club_commitment', course_enrollment_id: null, commitment_submission_id: submission.clubCommitmentSubmissionId, note, awarded_at: now });
+          if (awardResult.error?.code === '23505') duplicateAwardRace = true;
+          else if (awardResult.error) throw awardResult.error;
+        }
+      } finally { await reloadClubApprovalState(); }
+      if (duplicateAwardRace) {
+        const persistedAward = clubCommitmentAward(submission.clubCommitmentSubmissionId);
+        if (!persistedAward) throw new Error('A duplicate credit award was reported, but the authoritative award record could not be loaded.');
+        return { alreadyApproved: true };
+      }
+      return { alreadyApproved: false };
+    }
+    document.addEventListener('click', event => {
+      const button = event.target.closest('[data-approve-club-credit]');
+      if (!button) return;
+      event.preventDefault(); event.stopImmediatePropagation();
+      if (state.role !== 'admin') return;
+      button.disabled = true;
+      approveClubCommitmentForCredit(button.dataset.approveClubCredit).then(result => { toast(result.alreadyApproved ? 'This commitment has already been approved for credit.' : 'Commitment approved and credits awarded.'); render(); }).catch(error => { console.error('[Club Commitment approval] Approval failed:', error); toast('Credit approval failed: ' + (error.message || 'please try again.')); render(); });
+    }, true);
+    const creditsBeforeClubCommitmentAwards = credits;
+    credits = function () { const courseCredits = creditsBeforeClubCommitmentAwards(); if (state.role !== 'student' || !clubCommitmentAwardState.ready || clubCommitmentAwardState.adminScope) return courseCredits; return courseCredits + Object.values(clubCommitmentAwardState.byCommitmentSubmission).reduce((sum, item) => sum + (Number(item.credit_amount) || 0), 0); };
+    const statsBeforeClubCommitmentAwards = stats;
+    stats = function () { return statsBeforeClubCommitmentAwards().replace('From completed courses', 'From completed courses and approved Club commitments'); };
+    const renderBeforeClubCommitmentAwards = render;
+    render = function () {
+      const route = location.hash.slice(1).split('/')[0], needsAwards = route === 'clubs' || route === 'club' || route === 'profile' || (route === 'home' && state.role === 'student') || /^#grade\/commitment\|/.test(location.hash);
+      if (!needsAwards || !authState.user) { renderBeforeClubCommitmentAwards(); return; }
+      const adminScope = state.role === 'admin', submissionsReady = !adminScope || (clubCommitmentSubmissionState.ready && clubCommitmentSubmissionState.studentId === authState.user.id && clubCommitmentSubmissionState.adminScope === true);
+      if (!submissionsReady) { renderBeforeClubCommitmentAwards(); return; }
+      const scopeMatches = clubCommitmentAwardState.ready && clubCommitmentAwardState.userId === authState.user.id && clubCommitmentAwardState.adminScope === adminScope;
+      if (!scopeMatches) {
+        app.innerHTML = '<section class="panel"><h2>Loading Club credit awards</h2><p class="sub">Loading authoritative credit status…</p></section>';
+        if (!clubCommitmentAwardState.pending) loadClubCommitmentAwards().then(() => render()).catch(error => { console.error('[Club Commitment awards] Load failed:', error); app.innerHTML = '<section class="panel"><h2>Credit awards unavailable</h2><p class="sub">' + esc(error.message || 'Please refresh and try again.') + '</p></section>'; });
+        return;
+      }
+      renderBeforeClubCommitmentAwards();
+    };
+    const applyProfileBeforeClubCommitmentAwards = applyAuthenticatedProfile;
+    applyAuthenticatedProfile = function (user, profile) { if (clubCommitmentAwardState.userId !== user.id || clubCommitmentAwardState.adminScope !== (profile.role === 'admin')) clearClubCommitmentAwards(); applyProfileBeforeClubCommitmentAwards(user, profile); };
+
+    // Server-backed Club attendance. Weekdays follow JavaScript/Postgres convention: Sunday 0 through Saturday 6.
+    const clubAttendanceState = { accountId: null, ready: false, loading: false, pending: null, error: null, adminScope: false, preferencesByMembership: {}, recordsByMembership: {}, profileNames: {}, savingMemberships: new Set() };
+    const attendanceWeekdays = [{ value: 1, label: 'Monday' }, { value: 2, label: 'Tuesday' }, { value: 3, label: 'Wednesday' }, { value: 4, label: 'Thursday' }, { value: 5, label: 'Friday' }, { value: 6, label: 'Saturday' }, { value: 0, label: 'Sunday' }];
+    function clearClubAttendance() { Object.assign(clubAttendanceState, { accountId: null, ready: false, loading: false, pending: null, error: null, adminScope: false, preferencesByMembership: {}, recordsByMembership: {}, profileNames: {}, savingMemberships: new Set() }); }
+    async function loadClubAttendance(force = false) {
+      const accountId = authState.user?.id, adminScope = state.role === 'admin';
+      if (!accountId || !clubMembershipState.ready || clubMembershipState.studentId !== accountId || clubMembershipState.adminScope !== adminScope) return;
+      if (clubAttendanceState.accountId === accountId && clubAttendanceState.pending) return clubAttendanceState.pending;
+      if (!force && clubAttendanceState.accountId === accountId && clubAttendanceState.ready && clubAttendanceState.adminScope === adminScope) return;
+      Object.assign(clubAttendanceState, { accountId, ready: false, loading: true, error: null, adminScope, preferencesByMembership: {}, recordsByMembership: {}, profileNames: {} });
+      const membershipIds = clubMembershipState.items.map(item => item.id).filter(Boolean);
+      const request = (async () => {
+        if (!membershipIds.length) { clubAttendanceState.ready = true; return; }
+        const [preferencesResult, recordsResult] = await Promise.all([
+          openfieldSupabase.from('club_attendance_preferences').select('membership_id,weekday,created_at').in('membership_id', membershipIds),
+          openfieldSupabase.from('club_attendance_records').select('id,membership_id,attendance_date,attended,recorded_at').in('membership_id', membershipIds)
+        ]);
+        if (preferencesResult.error) throw preferencesResult.error;
+        if (recordsResult.error) throw recordsResult.error;
+        const preferencesByMembership = {}, recordsByMembership = {};
+        (preferencesResult.data || []).forEach(item => { (preferencesByMembership[String(item.membership_id)] ||= []).push(Number(item.weekday)); });
+        Object.values(preferencesByMembership).forEach(items => items.sort((a, b) => a - b));
+        (recordsResult.data || []).forEach(item => { (recordsByMembership[String(item.membership_id)] ||= {})[item.attendance_date] = item.attended === true; });
+        const profileNames = {};
+        if (adminScope) {
+          const studentIds = [...new Set(clubMembershipState.items.map(item => item.student_id).filter(Boolean))];
+          if (studentIds.length) {
+            const result = await openfieldSupabase.from('profiles').select('id,display_name').in('id', studentIds);
+            if (result.error) throw result.error;
+            (result.data || []).forEach(item => { profileNames[item.id] = item.display_name || 'Student'; });
+          }
+        }
+        if (authState.user?.id !== accountId || (state.role === 'admin') !== adminScope) return;
+        Object.assign(clubAttendanceState, { preferencesByMembership, recordsByMembership, profileNames, ready: true });
+      })().catch(error => { if (authState.user?.id === accountId && (state.role === 'admin') === adminScope) clubAttendanceState.error = error; throw error; }).finally(() => { if (clubAttendanceState.pending === request) clubAttendanceState.pending = null; if (authState.user?.id === accountId && (state.role === 'admin') === adminScope) clubAttendanceState.loading = false; });
+      clubAttendanceState.pending = request;
+      return request;
+    }
+    attendanceDays = function (club) {
+      const membership = clubMembershipState.byClubId[String(club.id)], selected = membership ? (clubAttendanceState.preferencesByMembership[String(membership.id)] || []) : [];
+      return attendanceWeekdays.map(day => '<label><input type="checkbox" data-attendance-day="' + esc(club.id) + '" value="' + day.value + '" ' + (selected.includes(day.value) ? 'checked' : '') + '> ' + day.label + '</label>').join('');
+    };
+    async function saveClubAttendancePreferences(clubId, selectedWeekdays) {
+      if (state.role !== 'student' || !authState.user?.id || !clubAttendanceState.ready) throw new Error('Attendance is still loading.');
+      const membership = clubMembershipState.byClubId[String(clubId)], club = clubs.find(item => String(item.id) === String(clubId));
+      if (!membership || String(membership.student_id) !== String(authState.user.id)) throw new Error('An active Club membership is required.');
+      const selected = [...new Set(selectedWeekdays.map(Number))];
+      if (selected.some(day => !Number.isInteger(day) || day < 0 || day > 6)) throw new Error('One or more attendance weekdays are invalid.');
+      if (selected.length > Number(club?.frequency || 1)) throw new Error('Choose no more than ' + Number(club?.frequency || 1) + ' attendance days.');
+      const existing = clubAttendanceState.preferencesByMembership[String(membership.id)] || [], additions = selected.filter(day => !existing.includes(day)), removals = existing.filter(day => !selected.includes(day));
+      try {
+        if (additions.length) { const result = await openfieldSupabase.from('club_attendance_preferences').upsert(additions.map(weekday => ({ membership_id: membership.id, weekday })), { onConflict: 'membership_id,weekday' }); if (result.error) throw result.error; }
+        if (removals.length) { const result = await openfieldSupabase.from('club_attendance_preferences').delete().eq('membership_id', membership.id).in('weekday', removals); if (result.error) throw result.error; }
+      } catch (error) { await loadClubAttendance(true); throw error; }
+      await loadClubAttendance(true);
+    }
+    async function markServerClubAttendance(clubId, attendanceDate) {
+      if (state.role !== 'student' || !authState.user?.id || !clubAttendanceState.ready) throw new Error('Attendance is still loading.');
+      const membership = clubMembershipState.byClubId[String(clubId)];
+      if (!membership || String(membership.student_id) !== String(authState.user.id)) throw new Error('An active Club membership is required.');
+      const allowedDates = new Set(Array.from({ length: 7 }, (_, index) => { const date = new Date(); date.setDate(date.getDate() - index); return isoDate(date); }));
+      if (!allowedDates.has(attendanceDate)) throw new Error('Attendance can only be marked for today or the previous six days.');
+      const { error } = await openfieldSupabase.from('club_attendance_records').upsert({ membership_id: membership.id, attendance_date: attendanceDate, attended: true, recorded_at: new Date().toISOString() }, { onConflict: 'membership_id,attendance_date' });
+      if (error) { await loadClubAttendance(true); throw error; }
+      await loadClubAttendance(true);
+    }
+    window.addEventListener('change', event => {
+      const input = event.target.closest('input[data-attendance-day]');
+      if (!input || state.role !== 'student') return;
+      event.stopImmediatePropagation();
+      const clubId = input.dataset.attendanceDay, membership = clubMembershipState.byClubId[String(clubId)], club = clubs.find(item => String(item.id) === String(clubId));
+      if (!membership || !clubAttendanceState.ready) { input.checked = !input.checked; toast('Attendance is still loading.'); return; }
+      const existing = clubAttendanceState.preferencesByMembership[String(membership.id)] || [], weekday = Number(input.value), selected = input.checked ? [...new Set([...existing, weekday])] : existing.filter(day => day !== weekday);
+      if (selected.length > Number(club?.frequency || 1)) { input.checked = false; toast('Choose no more than ' + club.frequency + ' attendance days.'); return; }
+      if (clubAttendanceState.savingMemberships.has(String(membership.id))) { input.checked = !input.checked; toast('Please wait for the current attendance update.'); return; }
+      clubAttendanceState.savingMemberships.add(String(membership.id));
+      input.closest('.attendance-days')?.querySelectorAll('input[data-attendance-day]').forEach(item => { item.disabled = true; });
+      saveClubAttendancePreferences(clubId, selected).then(() => { toast('Preferred attendance days saved.'); render(); }).catch(error => { console.error('[Club attendance] Preference save failed:', error); toast('Attendance preferences could not be saved: ' + (error.message || 'please try again.')); render(); }).finally(() => clubAttendanceState.savingMemberships.delete(String(membership.id)));
+    }, true);
+    window.addEventListener('click', event => {
+      const button = event.target.closest('button[data-attend]');
+      if (!button || state.role !== 'student') return;
+      event.preventDefault(); event.stopImmediatePropagation();
+      const [clubId, attendanceDate] = String(button.dataset.attend || '').split('|');
+      button.disabled = true;
+      markServerClubAttendance(clubId, attendanceDate).then(() => { toast('Attendance recorded.'); render(); }).catch(error => { console.error('[Club attendance] Record save failed:', error); toast('Attendance could not be saved: ' + (error.message || 'please try again.')); button.disabled = false; });
+    }, true);
+    function serverAttendanceDates() {
+      const dates = new Set();
+      Object.values(clubAttendanceState.recordsByMembership).forEach(records => Object.entries(records).forEach(([date, attended]) => { if (attended) dates.add(date); }));
+      return [...dates];
+    }
+    attendanceWeekCount = function () {
+      const weeks = new Set();
+      serverAttendanceDates().forEach(date => { const parsed = new Date(date + 'T12:00:00'); if (!Number.isNaN(parsed.getTime())) { parsed.setDate(parsed.getDate() - ((parsed.getDay() + 6) % 7)); weeks.add(isoDate(parsed)); } });
+      return weeks.size;
+    };
+    attendanceForYear = function (year) {
+      if (!clubAttendanceState.ready || clubAttendanceState.adminScope) return { weeks: 0, percentage: 0, expected: 1 };
+      const start = new Date(state.yearStarts['year' + year] || 0).getTime(), next = state.yearStarts['year' + (Number(year) + 1)] ? new Date(state.yearStarts['year' + (Number(year) + 1)]).getTime() : Infinity;
+      const dates = serverAttendanceDates().filter(date => { const time = new Date(date + 'T12:00:00').getTime(); return time >= start && time < next; });
+      const weeks = new Set(dates.map(date => { const value = new Date(date + 'T12:00:00'); value.setDate(value.getDate() - ((value.getDay() + 6) % 7)); return isoDate(value); }));
+      return { weeks: weeks.size, percentage: dates.length ? 100 : 0, expected: Math.max(1, weeks.size) };
+    };
+    const renderBeforeClubAttendance = render;
+    render = function () {
+      const route = location.hash.slice(1).split('/')[0], needsAttendance = route === 'clubs' || route === 'club' || (route === 'profile' && state.role === 'student');
+      if (!needsAttendance || !authState.user) { renderBeforeClubAttendance(); return; }
+      const adminScope = state.role === 'admin', membershipsReady = clubMembershipState.ready && clubMembershipState.studentId === authState.user.id && clubMembershipState.adminScope === adminScope;
+      if (!membershipsReady) { renderBeforeClubAttendance(); return; }
+      const scopeMatches = clubAttendanceState.ready && clubAttendanceState.accountId === authState.user.id && clubAttendanceState.adminScope === adminScope;
+      if (!scopeMatches) {
+        const error = clubAttendanceState.error;
+        app.innerHTML = heading('Clubs & societies', error ? 'Attendance unavailable' : 'Loading attendance…', error ? (error.message || String(error)) : 'Loading attendance preferences and records from the server.');
+        if (!error && !clubAttendanceState.pending) loadClubAttendance().then(() => render()).catch(() => render());
+        return;
+      }
+      renderBeforeClubAttendance();
+    };
+    const applyProfileBeforeClubAttendance = applyAuthenticatedProfile;
+    applyAuthenticatedProfile = function (user, profile) { if (clubAttendanceState.accountId !== user.id || clubAttendanceState.adminScope !== (profile.role === 'admin')) clearClubAttendance(); applyProfileBeforeClubAttendance(user, profile); };
     if (openfieldSupabase) openfieldSupabase.auth.onAuthStateChange((event) => { if (event === 'SIGNED_OUT') clearAdminNotificationReads(); });
     if (openfieldSupabase) openfieldSupabase.auth.onAuthStateChange((event) => { if (event === 'SIGNED_OUT') clearCourseFinalGrades(); });
     if (openfieldSupabase) openfieldSupabase.auth.onAuthStateChange((event) => { if (event === 'SIGNED_OUT') clearCourseFinalSubmissions(); });
+    if (openfieldSupabase) openfieldSupabase.auth.onAuthStateChange((event) => { if (event === 'SIGNED_OUT') clearClubCommitmentServerState(); });
+    if (openfieldSupabase) openfieldSupabase.auth.onAuthStateChange((event) => { if (event === 'SIGNED_OUT') clearClubCommitmentGrades(); });
+    if (openfieldSupabase) openfieldSupabase.auth.onAuthStateChange((event) => { if (event === 'SIGNED_OUT') clearClubCommitmentAwards(); });
+    if (openfieldSupabase) openfieldSupabase.auth.onAuthStateChange((event) => { if (event === 'SIGNED_OUT') clearClubAttendance(); });
     restoreSupabaseSession();
   </script>
 </body>
