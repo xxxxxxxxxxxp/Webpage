@@ -1311,6 +1311,26 @@
       .topbar { padding-left: 16px; padding-right: 16px }
     }
   </style>
+  <style>
+    .field.validation-error input,
+    .field.validation-error select,
+    .field.validation-error textarea {
+      border-color: #b42318;
+      box-shadow: 0 0 0 1px #b42318;
+    }
+
+    .field-error,
+    .section-error {
+      color: #b42318;
+      font-size: 12px;
+      margin-top: 6px;
+    }
+
+    [data-course-section].validation-error > .section-head h2::after {
+      content: " •";
+      color: #b42318;
+    }
+  </style>
 </head>
 
 <body>
@@ -1540,9 +1560,9 @@
     function sectionFields(entries) { let start = 1; return entries.map((entry, index) => { const duration = Math.max(1, Number(entry.durationWeeks) || 1); const label = weekLabel(start, duration); start += duration; return '<section class="syllabus-week" data-section data-section-id="' + esc(entry.id || '') + '" data-resource-id="' + esc(entry.resourceId || '') + '"><h3 data-range>' + label + '</h3><div class="field"><label>Duration</label><input name="section-duration-' + index + '" type="number" min="1" max="52" value="' + duration + '"> <span class="sub">weeks</span></div><div class="field"><label>Title</label><input name="section-title-' + index + '" value="' + esc(entry.title) + '"></div><div class="field"><label>Resource</label><input name="section-resource-' + index + '" value="' + esc(entry.resourceLink) + '" placeholder="URL or reading instruction"></div><div class="field"><label>Task / description</label><textarea name="section-task-' + index + '">' + esc(entry.taskDescription) + '</textarea></div><div class="section-actions"><button class="btn outline" type="button" data-remove-section>Remove section</button></div></section>' }).join('') }
     function editorSections(form) { return Array.from(form.querySelectorAll('[data-section]')).map((node, index) => ({ id: node.dataset.sectionId || '', resourceId: node.dataset.resourceId || '', durationWeeks: Number(fieldValue(node, 'section-duration-')), title: fieldValue(node, 'section-title-').trim(), resourceLink: fieldValue(node, 'section-resource-').trim(), taskDescription: fieldValue(node, 'section-task-').trim() })) }
     function refreshSectionEditor(form) { const entries = editorSections(form); document.getElementById('syllabus-weeks').innerHTML = sectionFields(entries); const total = entries.reduce((n, s) => n + s.durationWeeks, 0), duration = Math.max(1, Number(form.elements.duration.value) || 1), summary = document.getElementById('syllabus-coverage'); summary.textContent = 'Syllabus coverage: ' + total + ' / ' + duration + ' weeks' + (total === duration ? '' : ' — adjust section durations before saving.'); summary.classList.toggle('invalid', total !== duration) }
-    function structuredCourseForm(id) { const c = id ? courses.find(course => course.id === id) : null; if (id && !c) return heading('Not found', 'Course not found.', 'Return to Schools & courses.'); const course = normaliseCourseSections(c || { code: '', title: '', description: '', credits: 3, school: schools[0]?.id || '', club: '', duration: 4, syllabus: [{ durationWeeks: 1, title: '', resourceLink: '', taskDescription: '' }], additionalResources: [] }); const total = course.syllabus.reduce((n, s) => n + s.durationWeeks, 0); return heading('Administrator · Courses', id ? 'Edit course' : 'Add course', id ? 'Update this course’s details.' : 'Add a course to the shared catalogue.') + '<a class="back" href="#schools">← Back to schools & courses</a><form data-form="course-structured" data-id="' + (id || '') + '" class="syllabus-editor"><section class="panel admin-panel"><div class="form-grid"><div class="field"><label>Course code</label><input name="code" value="' + esc(course.code || '') + '" placeholder="e.g. BIO101"></div><div class="field"><label>Course title</label><input name="title" value="' + esc(course.title) + '" required></div><div class="field"><label>School</label><select name="school">' + schools.map(s => '<option value="' + s.id + '" ' + (s.id === course.school ? 'selected' : '') + '>' + esc(s.name) + '</option>').join('') + '</select></div><div class="field"><label>Credits</label><input name="credits" type="number" min="1" value="' + course.credits + '" required></div><div class="field"><label>Connected club</label><select name="club"><option value="">No connected club</option>' + clubs.map(club => '<option value="' + club.id + '" ' + (club.id === course.club ? 'selected' : '') + '>' + esc(club.name) + '</option>').join('') + '</select></div><div class="field full"><label>Course description</label><textarea name="description" required>' + esc(course.description) + '</textarea></div><div class="field"><label>Course duration</label><input id="course-duration" name="duration" type="number" min="1" max="52" value="' + course.duration + '" required><span class="sub">weeks</span></div></div></section><section><div class="section-head"><h2>Syllabus</h2><button class="btn outline" type="button" data-add-section>+ Add syllabus section</button></div><div id="syllabus-coverage" class="syllabus-summary ' + (total === course.duration ? '' : 'invalid') + '">Syllabus coverage: ' + total + ' / ' + course.duration + ' weeks' + (total === course.duration ? '' : ' — adjust section durations before saving.') + '</div><div id="syllabus-weeks">' + sectionFields(course.syllabus) + '</div></section><section class="panel"><div class="section-head" style="margin-top:0"><h2>Additional useful resources</h2><button class="btn outline" type="button" data-add-resource>+ Add resource</button></div><div id="additional-resources">' + resourceFields(course.additionalResources) + '</div><p class="sub" data-no-resources ' + (course.additionalResources.length ? 'hidden' : '') + '>No additional resources yet.</p></section><button class="btn" type="submit">' + (id ? 'Save course' : 'Save course') + ' ↗</button></form>' }
+    function structuredCourseForm(id) { const c = id ? courses.find(course => course.id === id) : null; if (id && !c) return heading('Not found', 'Course not found.', 'Return to Schools & courses.'); const course = normaliseCourseSections(c || { code: '', title: '', description: '', credits: 3, school: schools[0]?.id || '', club: '', duration: 4, syllabus: [{ durationWeeks: 1, title: '', resourceLink: '', taskDescription: '' }], additionalResources: [] }); const total = course.syllabus.reduce((n, s) => n + s.durationWeeks, 0); return heading('Administrator · Courses', id ? 'Edit course' : 'Add course', id ? 'Update this course’s details.' : 'Add a course to the shared catalogue.') + '<a class="back" href="#schools">← Back to schools & courses</a><form data-form="course-structured" data-id="' + (id || '') + '" class="syllabus-editor" novalidate><section class="panel admin-panel" data-course-section="general"><div class="form-grid"><div class="field"><label>Course code</label><input name="code" value="' + esc(course.code || '') + '" placeholder="e.g. BIO101"></div><div class="field"><label>Course title</label><input name="title" value="' + esc(course.title) + '" required></div><div class="field"><label>School</label><select name="school">' + schools.map(s => '<option value="' + s.id + '" ' + (s.id === course.school ? 'selected' : '') + '>' + esc(s.name) + '</option>').join('') + '</select></div><div class="field"><label>Credits</label><input name="credits" type="number" min="1" value="' + course.credits + '" required></div><div class="field"><label>Connected club</label><select name="club"><option value="">No connected club</option>' + clubs.map(club => '<option value="' + club.id + '" ' + (club.id === course.club ? 'selected' : '') + '>' + esc(club.name) + '</option>').join('') + '</select></div><div class="field full"><label>Course description</label><textarea name="description" required>' + esc(course.description) + '</textarea></div><div class="field"><label>Course duration</label><input id="course-duration" name="duration" type="number" min="1" max="52" value="' + course.duration + '" required><span class="sub">weeks</span></div></div></section><section data-course-section="syllabus"><div class="section-head"><h2>Syllabus</h2></div><div id="syllabus-coverage" class="syllabus-summary ' + (total === course.duration ? '' : 'invalid') + '">Syllabus coverage: ' + total + ' / ' + course.duration + ' weeks' + (total === course.duration ? '' : ' — adjust section durations before saving.') + '</div><div id="syllabus-weeks">' + sectionFields(course.syllabus) + '</div><button class="btn outline" type="button" data-add-section>+ Add syllabus section</button></section><section class="panel" data-course-section="resources"><div class="section-head" style="margin-top:0"><h2>Additional useful resources</h2><button class="btn outline" type="button" data-add-resource>+ Add resource</button></div><div id="additional-resources">' + resourceFields(course.additionalResources) + '</div><p class="sub" data-no-resources ' + (course.additionalResources.length ? 'hidden' : '') + '>No additional resources yet.</p></section></form>' }
     adminCourseForm = function (id) { const schoolId = !id ? location.hash.slice(1).split('/')[1] : ''; let html = structuredCourseForm(id); if (schoolId) { html = html.replace(/<option value="[^"]+" selected>/g, match => match.replace(' selected', '')); html = html.replace(new RegExp('value="' + schoolId + '"'), 'value="' + schoolId + '" selected') } return html };
-    const baseCourseFormWithFinal = structuredCourseForm; structuredCourseForm = function (id, initialSchool) { let html = baseCourseFormWithFinal(id, initialSchool); const course = id ? courses.find(item => item.id === id) : null; const finalFields = '<section class="panel admin-panel"><div class="section-head" style="margin-top:0"><h2>Final Task</h2><span class="pill">Student submission</span></div><div class="form-grid"><div class="field full"><label>Final Task Title</label><input name="finalTitle" value="' + esc(course?.finalTitle || '') + '" placeholder="Final project title"></div><div class="field full"><label>Final Task Description / Instructions</label><textarea name="finalDescription" placeholder="Describe the final task and instructions">' + esc(course?.finalDescription || '') + '</textarea></div><div class="field full"><label>Submission Link / Instructions</label><input name="finalSubmissionLink" value="' + esc(course?.finalSubmissionLink || '') + '" placeholder="Optional submission guidance or link"></div></div></section>'; return html.replace('</form>', finalFields + '</form>') }; adminCourseForm = structuredCourseForm;
+    const baseCourseFormWithFinal = structuredCourseForm; structuredCourseForm = function (id, initialSchool) { let html = baseCourseFormWithFinal(id, initialSchool); const course = id ? courses.find(item => item.id === id) : null; const finalFields = '<section class="panel admin-panel" data-course-section="finals"><div class="section-head" style="margin-top:0"><h2>Final Task</h2><span class="pill">Student submission</span></div><div class="form-grid"><div class="field full"><label>Final Task Title</label><input name="finalTitle" value="' + esc(course?.finalTitle || '') + '" placeholder="Final project title"></div><div class="field full"><label>Final Task Description / Instructions</label><textarea name="finalDescription" placeholder="Describe the final task and instructions">' + esc(course?.finalDescription || '') + '</textarea></div><div class="field full"><label>Submission Link / Instructions</label><input name="finalSubmissionLink" value="' + esc(course?.finalSubmissionLink || '') + '" placeholder="Optional submission guidance or link"></div></div></section><button class="btn" type="submit">Save Course ↗</button>'; return html.replace('</form>', finalFields + '</form>') }; adminCourseForm = structuredCourseForm;
     app.addEventListener('click', e => { const form = e.target.closest('form[data-form="course-structured"]'); if (!form) return; if (e.target.closest('[data-add-section]')) { const entries = editorSections(form); entries.push({ durationWeeks: 1, title: '', resourceLink: '', taskDescription: '' }); document.getElementById('syllabus-weeks').innerHTML = sectionFields(entries); refreshSectionEditor(form) } if (e.target.closest('[data-remove-section]')) { e.target.closest('[data-section]').remove(); refreshSectionEditor(form) } });
     app.addEventListener('change', e => { const form = e.target.form; if (form?.dataset.form === 'course-structured' && e.target.name?.startsWith('section-duration-')) refreshSectionEditor(form) });
     app.addEventListener('submit', e => { const form = e.target; if (form.dataset.form !== 'course-structured') return; const invalid = Array.from(form.querySelectorAll('[name^="section-duration-"]')).some(input => !Number.isInteger(Number(input.value)) || Number(input.value) < 1); if (invalid) { e.preventDefault(); e.stopImmediatePropagation(); toast('Each syllabus section duration must be a whole number of at least 1. Your work is still here.') } }, true);
@@ -1560,7 +1580,7 @@
     booksView = function () { return heading('Reading programme', 'One book. A new beginning.', 'Complete each level to unlock the next one.') + readingLevels(false) };
     adminReading = function () { return heading('Administrator · Reading programme', 'Curate all seven levels.', 'Every level is available for editing.') + readingLevels(true) };
     app.addEventListener('submit', e => { const form = e.target; if (!['book-admin', 'book-edit', 'review'].includes(form.dataset.form)) return; e.preventDefault(); e.stopImmediatePropagation(); const data = new FormData(form); if (form.dataset.form === 'review') { const link = String(data.get('review') || '').trim(); if (!link) { toast('Add your book review link. Your form is still here.'); return } state.submissions.reviews = state.submissions.reviews || {}; state.submissions.reviews[form.dataset.book] = { review: link }; if (!persist()) return; toast('Book review submitted. The book is complete.'); location.hash = 'reading'; render(); return } const title = String(data.get('title') || '').trim(); if (!title) { toast('Enter a book title. Your form is still here.'); return } const details = { title, author: String(data.get('author') || '').trim(), level: Math.max(1, Math.min(7, Number(data.get('level')) || 1)) }; if (form.dataset.form === 'book-admin') state.books.push({ id: 'book-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7), ...details }); else { const book = state.books.find(b => b.id === form.dataset.id); if (!book) { toast('Book could not be found.'); return } Object.assign(book, details) } if (!persist()) return; toast(form.dataset.form === 'book-edit' ? 'Book updated.' : 'Book added.'); render() }, true);
-    app.addEventListener('click', e => { const unenrol = e.target.closest('[data-unenrol]'); if (unenrol) { delete state.courses[unenrol.dataset.unenrol]; persist(); render(); toast('You have unenrolled from this course.') } const edit = e.target.closest('[data-edit-reading-book]'); if (edit) { const book = state.books.find(b => b.id === edit.dataset.editReadingBook); if (!book) return; const host = edit.closest('.card'); host.outerHTML = '<section class="panel admin-panel"><form data-form="book-edit" data-id="' + book.id + '" class="form-grid"><div class="field"><label>Title</label><input name="title" value="' + esc(book.title) + '" required></div><div class="field"><label>Author</label><input name="author" value="' + esc(book.author) + '"></div><div class="field"><label>Level</label><select name="level">' + [1, 2, 3, 4, 5, 6, 7].map(n => '<option ' + (Number(book.level) === n ? 'selected' : '') + '>' + n + '</option>').join('') + '</select></div><div class="full"><button class="btn outline">Save book</button> <button class="btn outline" type="button" data-delete-book="' + book.id + '">Delete</button></div></form></section>' } });
+    app.addEventListener('click', e => { const unenrol = e.target.closest('[data-unenrol]'); if (unenrol) { delete state.courses[unenrol.dataset.unenrol]; persist(); render(); toast('You have unenrolled from this course.') } const edit = e.target.closest('[data-edit-reading-book]'); if (edit) { const book = state.books.find(b => b.id === edit.dataset.editReadingBook); if (!book) return; const host = edit.closest('.card'); host.outerHTML = '<section class="panel admin-panel"><form data-form="book-edit" data-id="' + book.id + '" class="form-grid"><input type="hidden" name="level" value="' + Number(book.level) + '"><div class="field"><label>Title</label><input name="title" value="' + esc(book.title) + '" required></div><div class="field"><label>Author</label><input name="author" value="' + esc(book.author) + '"></div><div class="full"><button class="btn outline">Save</button> <button class="btn outline" type="button" data-cancel-reading-book>Cancel</button></div></form></section>' } const cancelBook = e.target.closest('[data-cancel-reading-book]'); if (cancelBook) render(); });
     const coursePageWithUnenrol = coursePage; coursePage = function (id) { let html = coursePageWithUnenrol(id); const c = courses.find(x => x.id === id); if (c && state.courses[c.id]) html = html.replace('</aside>', '<button style="width:100%;margin-top:12px" class="btn outline" data-unenrol="' + c.id + '">Unenroll</button></aside>'); return html };
     const baseStats = stats; stats = function () { const reviews = Object.keys(state.submissions.reviews || {}).length; return '<div class="stats"><div class="stat"><small>Credits earned</small><strong>' + credits() + '</strong><span>From completed courses</span></div><div class="stat"><small>Books completed</small><strong><button class="stat-link" data-show-reviews>' + reviews + '</button></strong><span>Your reading journey</span></div><div class="stat"><small>Research papers</small><strong><button class="stat-link" data-show-research>' + state.research.length + '</button></strong><span>Ideas worth exploring</span></div><div class="stat"><small>Club memberships</small><strong>' + state.clubs.length + '</strong><span>Find your people</span></div></div>' };
     app.addEventListener('click', e => { if (e.target.closest('[data-show-reviews]')) { const rows = Object.entries(state.submissions.reviews || {}).map(([id, r]) => { const b = state.books.find(x => x.id === id); return b ? '<section class="panel"><h3>' + esc(b.title) + '</h3><p class="sub">' + esc(b.author) + '</p><p><a href="' + esc(r.review) + '" target="_blank" rel="noreferrer">Review link ↗</a></p></section>' : '' }).join('') || '<p class="sub">No completed book reviews yet.</p>'; document.querySelector('.content').innerHTML = heading('My profile', 'Completed book reviews', 'Your submitted reading reflections.') + rows } if (e.target.closest('[data-show-research]')) { const rows = state.research.map(r => '<section class="panel"><h3>' + esc(r.title) + '</h3><p>' + esc(r.abstract) + '</p><p><a href="' + esc(r.link) + '" target="_blank" rel="noreferrer">Research link ↗</a></p></section>').join('') || '<p class="sub">No independent research submissions yet.</p>'; document.querySelector('.content').innerHTML = heading('My profile', 'Independent research', 'Your submitted research.') + rows } });
@@ -1649,7 +1669,7 @@
     /* Stamp new work with the active academic year without changing historical records. */
     app.addEventListener('change', e => { const final = e.target.closest('[data-final]'); if (final && final.checked) state.courseYears[final.dataset.final] = studentYear() });
     const bookPageBeforeAdminGrade = bookPage; bookPage = function (id) { if (state.role !== 'admin') return bookPageBeforeAdminGrade(id); const book = state.books.find(item => item.id === id); if (!book) return heading('Not found', 'Book not found.', 'Return to Reading programme.'); return '<a class="back" href="#reading">← Back to Reading Programme</a>' + heading('Administrator · Reading programme', book.title, book.author + ' · Level ' + book.level) + '<section class="panel admin-panel"><p class="sub">Open every submitted review of this book to grade an individual student submission.</p><a class="btn outline" href="#reading/' + encodeURIComponent(id) + '">Grade submitted reviews</a></section>' };
-    const readingLevelsBeforeBookOpen = readingLevels; readingLevels = function (admin) { let html = readingLevelsBeforeBookOpen(admin); return admin ? html.replace(/<button class="btn outline" type="button" data-edit-reading-book="([^"]+)">Edit<\/button> <button class="btn outline" type="button" data-delete-book="\1">Delete<\/button>/g, '<a class="btn outline" href="#book/$1">Open book</a> <button class="btn outline" type="button" data-delete-book="$1">Delete</button>') : html };
+    const readingLevelsBeforeBookOpen = readingLevels; readingLevels = function (admin) { let html = readingLevelsBeforeBookOpen(admin); return admin ? html.replace(/<button class="btn outline" type="button" data-edit-reading-book="([^"]+)">Edit<\/button> <button class="btn outline" type="button" data-delete-book="\1">Delete<\/button>/g, '<a class="btn outline" href="#book/$1">Open book</a> <button class="btn outline" type="button" data-edit-reading-book="$1">Edit</button> <button class="btn outline" type="button" data-delete-book="$1">Delete</button>') : html };
     const renderBeforeGradesRoute = render; render = function () { if (location.hash.split('/')[0] === '#grades') { document.getElementById('breadcrumb').textContent = 'Personal Tracker / Grades'; app.innerHTML = gradesPage() + '<footer></footer>'; return } renderBeforeGradesRoute() };
     window.addEventListener('hashchange', () => { render(); window.scrollTo(0, 0) });
     /* Supabase Auth gate. Local application records remain local until a later migration step. */
@@ -2128,6 +2148,7 @@
             values.required_attendance_percentage > 100 || values.minimum_average_grade > 100) throw new Error('Enter valid graduation requirements; percentages must be 0–100.');
         const exists = catalogue.rows.graduation_requirements.some(row => Number(row.academic_year) === year);
         await saveCatalogueRow('graduation_requirements', exists ? year : null, { academic_year: year, ...values }, 'academic_year');
+        if (typeof graduationDraft !== 'undefined') delete graduationDraft.years[form.dataset.year];
         return 'graduation';
       }
       throw new Error('This legacy course form is no longer used. Open the course through Schools & courses to edit its structured syllabus.');
@@ -2150,17 +2171,56 @@
         console.error('[Catalogue] Save failed; a multi-table save may be partially applied.', error);
         // Re-read server state after a partial write, but keep the user's populated form visible.
         try { await loadGlobalCatalogue(true) } catch (reloadError) { console.error('[Catalogue] Reload after failed save failed.', reloadError) }
-        toast('Save not completed: ' + error.message + ' Some earlier steps may have saved. Your form is retained; check before retrying.');
+        toast('Save failed: ' + error.message + ' Your current form is retained.');
       } finally {
         catalogue.writing = false;
         buttons.forEach((button, index) => button.disabled = disabled[index]);
       }
+    }
+    function clearCourseValidation(form) {
+      form.querySelectorAll('.validation-error').forEach(node => node.classList.remove('validation-error'));
+      form.querySelectorAll('.field-error,.section-error').forEach(node => node.remove());
+    }
+    function addCourseFieldError(form, name, message) {
+      const control = form.elements[name], field = control?.closest('.field');
+      if (!field) return;
+      field.classList.add('validation-error');
+      field.insertAdjacentHTML('beforeend', '<p class="field-error">' + esc(message) + '</p>');
+    }
+    function validateCourseBeforeSave(form) {
+      clearCourseValidation(form);
+      const data = new FormData(form), errors = [], title = String(data.get('title') || '').trim(), school = String(data.get('school') || ''),
+        creditsText = String(data.get('credits') ?? '').trim(), credits = Number(creditsText), durationText = String(data.get('duration') ?? '').trim(), duration = Number(durationText), sections = editorSections(form);
+      if (!title) { addCourseFieldError(form, 'title', 'Course Title is required.'); errors.push('general'); }
+      if (!school || !schools.some(item => String(item.id) === school)) { addCourseFieldError(form, 'school', 'School is required.'); errors.push('general'); }
+      if (!creditsText) { addCourseFieldError(form, 'credits', 'Credits is required.'); errors.push('general'); }
+      else if (!Number.isFinite(credits) || credits < 1) { addCourseFieldError(form, 'credits', 'Credits must be a number of at least 1.'); errors.push('general'); }
+      if (!durationText) { addCourseFieldError(form, 'duration', 'Course Duration is required.'); errors.push('general'); }
+      else if (!Number.isInteger(duration) || duration < 1 || duration > 52) { addCourseFieldError(form, 'duration', 'Course Duration must be a whole number from 1 to 52.'); errors.push('general'); }
+      let invalidSectionDuration = false;
+      sections.forEach((section, index) => {
+        if (!Number.isInteger(section.durationWeeks) || section.durationWeeks < 1 || section.durationWeeks > 52) {
+          addCourseFieldError(form, 'section-duration-' + index, 'Section duration must be a whole number from 1 to 52.');
+          invalidSectionDuration = true;
+        }
+      });
+      const covered = sections.reduce((sum, section) => sum + (Number.isFinite(section.durationWeeks) ? section.durationWeeks : 0), 0), syllabus = form.querySelector('[data-course-section="syllabus"]');
+      if (!sections.length || invalidSectionDuration || Number.isInteger(duration) && covered !== duration) {
+        syllabus?.classList.add('validation-error');
+        const message = !sections.length ? 'Add at least one syllabus section.' : invalidSectionDuration ? 'Correct the highlighted section durations.' : 'Whole-week syllabus coverage must equal ' + duration + ' weeks. Currently covered: ' + covered + ' weeks. ' + (covered < duration ? duration - covered + ' week' + (duration - covered === 1 ? '' : 's') + ' uncovered.' : covered - duration + ' week' + (covered - duration === 1 ? '' : 's') + ' over-covered.');
+        syllabus?.querySelector('.section-head')?.insertAdjacentHTML('afterend', '<p class="section-error">⚠ ' + esc(message) + '</p>');
+        errors.push('syllabus');
+      }
+      form.querySelector('[data-course-section="general"]')?.classList.toggle('validation-error', errors.includes('general'));
+      if (errors.length) form.querySelector('.validation-error input,.validation-error select,.validation-error textarea')?.focus();
+      return errors.length === 0;
     }
     // Window capture precedes all legacy document/app handlers, including their capture listeners.
     window.addEventListener('submit', e => {
       const form = e.target;
       if (!catalogueForms.has(form.dataset.form)) return;
       e.preventDefault(); e.stopImmediatePropagation();
+      if (form.dataset.form === 'course-structured' && !validateCourseBeforeSave(form)) { toast('Fix the highlighted Course fields before saving.'); return; }
       void runCatalogueWrite(form, () => saveCatalogueForm(form));
     }, true);
     window.addEventListener('click', e => {
@@ -4992,7 +5052,7 @@
 
     // Admin catalogue editor drafts are transient DOM snapshots. They survive local
     // editor rerenders/tab changes, but are discarded as soon as the editor route is left.
-    const courseEditorDraft = { route: '', html: '' }, clubEditorDraft = { route: '', html: '' };
+    const courseEditorDraft = { route: '', html: '' }, clubEditorDraft = { route: '', html: '' }, graduationDraft = { route: '', years: {} };
     function editorDraftForRoute(hash = location.hash) {
       if (/^#admin-course-(?:new(?:\/[^/]+)?|edit\/[^/]+)$/.test(hash)) return courseEditorDraft;
       if (/^#admin-club-(?:new|edit\/[^/]+)$/.test(hash)) return clubEditorDraft;
@@ -5007,7 +5067,7 @@
         const target = copyControls[index];
         if (!target || source.type === 'file') return;
         if (source.matches('textarea')) target.textContent = source.value;
-        else if (source.matches('select')) Array.from(target.options).forEach((option, optionIndex) => { option.selected = source.options[optionIndex]?.selected === true; });
+        else if (source.matches('select')) Array.from(target.options).forEach((option, optionIndex) => { const selected = source.options[optionIndex]?.selected === true; option.selected = selected; option.toggleAttribute('selected', selected); });
         else if (source.type === 'checkbox' || source.type === 'radio') target.toggleAttribute('checked', source.checked);
         else target.setAttribute('value', source.value);
       });
@@ -5030,15 +5090,38 @@
       template.innerHTML = draft.html;
       current.replaceWith(template.content.firstElementChild);
     }
-    document.addEventListener('input', captureEditorDraft, true);
-    document.addEventListener('change', captureEditorDraft, true);
+    function captureGraduationDraft(event) {
+      if (location.hash !== '#graduation' || state.role !== 'admin') return;
+      const form = event?.target?.closest?.('form[data-form="graduation"]');
+      if (!form) return;
+      graduationDraft.route = location.hash;
+      graduationDraft.years[form.dataset.year] = serializeEditorForm(form);
+    }
+    function restoreGraduationDraft() {
+      if (location.hash !== '#graduation' || graduationDraft.route !== location.hash || state.role !== 'admin') return;
+      Object.entries(graduationDraft.years).forEach(([year, html]) => {
+        const current = document.querySelector('form[data-form="graduation"][data-year="' + year + '"]');
+        if (!current || !html) return;
+        const template = document.createElement('template');
+        template.innerHTML = html;
+        current.replaceWith(template.content.firstElementChild);
+      });
+    }
+    document.addEventListener('input', event => { captureEditorDraft(); captureGraduationDraft(event); }, true);
+    document.addEventListener('change', event => { captureEditorDraft(); captureGraduationDraft(event); }, true);
     document.addEventListener('click', event => { if (event.target.closest('[data-add-section],[data-remove-section],[data-add-resource],[data-remove-resource],[data-add-commitment],[data-remove-commitment]')) queueMicrotask(captureEditorDraft); });
     window.addEventListener('hashchange', () => {
       if (courseEditorDraft.route && location.hash !== courseEditorDraft.route) Object.assign(courseEditorDraft, { route: '', html: '' });
       if (clubEditorDraft.route && location.hash !== clubEditorDraft.route) Object.assign(clubEditorDraft, { route: '', html: '' });
+      if (graduationDraft.route && location.hash !== graduationDraft.route) Object.assign(graduationDraft, { route: '', years: {} });
     });
     const renderBeforeEditorDrafts = render;
-    render = function () { renderBeforeEditorDrafts(); restoreEditorDraft(); };
+    render = function () {
+      if (state.role === 'admin' && (location.hash === '#profile' || location.hash.split('/')[0] === '#grades')) { location.hash = 'admin'; return; }
+      renderBeforeEditorDrafts();
+      restoreEditorDraft();
+      restoreGraduationDraft();
+    };
     if (openfieldSupabase) openfieldSupabase.auth.onAuthStateChange((event) => { if (event === 'SIGNED_OUT') clearAdminNotificationReads(); });
     if (openfieldSupabase) openfieldSupabase.auth.onAuthStateChange((event) => { if (event === 'SIGNED_OUT') clearCourseFinalGrades(); });
     if (openfieldSupabase) openfieldSupabase.auth.onAuthStateChange((event) => { if (event === 'SIGNED_OUT') clearCourseFinalSubmissions(); });
