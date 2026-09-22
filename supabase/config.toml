@@ -1,2 +1,5 @@
 [functions.register-admin]
 verify_jwt = false
+
+[functions.revision-planner]
+verify_jwt = true
