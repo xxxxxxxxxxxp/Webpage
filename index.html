@@ -1823,9 +1823,9 @@
         if (messageElement) messageElement.textContent = message; else toast(message);
       } finally { button.disabled = false; }
     }, true);
-    document.addEventListener('click', async e => { const logout = e.target.closest('#logout-button'); if (!logout) return; e.preventDefault(); const { error } = await openfieldSupabase.auth.signOut(); if (error) { console.error('[Supabase Auth] Sign out failed:', error); toast('Could not sign out. Please try again.'); return; } clearResearchSubmissions(); clearWorkspacePermissions(); clearSkillsRouteMemory(); authState.user = null; authState.profile = null; authState.expectedLoginRole = null; authState.ready = true; document.getElementById('logout-button').hidden = true; location.hash = 'home'; renderAuthScreen(); }, { capture: true });
+    document.addEventListener('click', async e => { const logout = e.target.closest('#logout-button'); if (!logout) return; e.preventDefault(); const { error } = await openfieldSupabase.auth.signOut(); if (error) { console.error('[Supabase Auth] Sign out failed:', error); toast('Could not sign out. Please try again.'); return; } clearResearchSubmissions(); clearWorkspacePermissions(); clearSkillsRouteMemory(); clearSkillsDrafts(); authState.user = null; authState.profile = null; authState.expectedLoginRole = null; authState.ready = true; document.getElementById('logout-button').hidden = true; location.hash = 'home'; renderAuthScreen(); }, { capture: true });
     const renderBeforeAuth = render; render = function () { if (!authState.ready || !authState.user) { renderAuthScreen(); return } renderBeforeAuth() };
-    if (openfieldSupabase) { openfieldSupabase.auth.onAuthStateChange((event, session) => { setTimeout(() => { if (event === 'SIGNED_OUT') { const message = authState.authMessage; authState.authMessage = ''; clearResearchSubmissions(); clearWorkspacePermissions(); clearSkillsRouteMemory(); authState.user = null; authState.profile = null; authState.expectedLoginRole = null; authState.ready = true; document.getElementById('logout-button').hidden = true; renderAuthScreen(message); } else if (session?.user && !authState.expectedLoginRole) restoreSupabaseSession(); }, 0); }); }
+    if (openfieldSupabase) { openfieldSupabase.auth.onAuthStateChange((event, session) => { setTimeout(() => { if (event === 'SIGNED_OUT') { const message = authState.authMessage; authState.authMessage = ''; clearResearchSubmissions(); clearWorkspacePermissions(); clearSkillsRouteMemory(); clearSkillsDrafts(); authState.user = null; authState.profile = null; authState.expectedLoginRole = null; authState.ready = true; document.getElementById('logout-button').hidden = true; renderAuthScreen(message); } else if (session?.user && !authState.expectedLoginRole) restoreSupabaseSession(); }, 0); }); }
     const profileBeforeAdminAccess = profile; profile = function () { return profileBeforeAdminAccess() + adminAccessSection() };
 
     /* Stage 1: shared catalogue lives in Supabase; learner records remain local. */
@@ -2111,7 +2111,6 @@
             values.required_attendance_percentage > 100 || values.minimum_average_grade > 100) throw new Error('Enter valid graduation requirements; percentages must be 0–100.');
         const exists = catalogue.rows.graduation_requirements.some(row => Number(row.academic_year) === year);
         await saveCatalogueRow('graduation_requirements', exists ? year : null, { academic_year: year, ...values }, 'academic_year');
-        if (typeof graduationDraft !== 'undefined') delete graduationDraft.years[form.dataset.year];
         return 'graduation';
       }
       throw new Error('This legacy course form is no longer used. Open the course through Schools & courses to edit its structured syllabus.');
@@ -3817,15 +3816,69 @@
       rememberSkillsRoute();
     };
     window.addEventListener('hashchange', () => rememberSkillsRoute());
+    // Drafts are intentionally in-memory: navigation and ordinary rerenders retain
+    // unfinished work, while refreshes and sign-outs do not. The key includes the
+    // form's entity identity, so Course A and Course B never share a draft.
+    const skillsDraftState = { accountId: null, role: null, forms: {} };
+    function clearSkillsDrafts() {
+      Object.assign(skillsDraftState, { accountId: null, role: null, forms: {} });
+    }
+    function draftFormKey(form) {
+      const kind = form.dataset.form;
+      if (!kind || kind.startsWith('auth-')) return null;
+      const identity = form.dataset.id || form.dataset.course || form.dataset.book || form.dataset.year || form.dataset.submissionId || form.dataset.instanceId ||
+        (kind === 'course-structured' ? (location.hash.replace(/^#/, '') || 'new') : 'new');
+      return kind + ':' + identity;
+    }
+    function captureFormDraft(form) {
+      const key = draftFormKey(form);
+      if (!key) return;
+      const fields = {};
+      form.querySelectorAll('input, textarea, select').forEach((field, index) => {
+        if (field.type === 'file') return; // Browsers intentionally do not permit restoring Files.
+        const fieldKey = (field.name || field.id || field.type || 'field') + ':' + index;
+        fields[fieldKey] = { value: field.value, checked: field.checked };
+      });
+      skillsDraftState.forms[key] = { html: form.innerHTML, fields };
+    }
+    function captureSkillsDrafts() {
+      if (!authState.user) return;
+      app.querySelectorAll('form[data-form]').forEach(captureFormDraft);
+    }
+    function restoreSkillsDrafts() {
+      if (!authState.user) return;
+      app.querySelectorAll('form[data-form]').forEach(form => {
+        const draft = skillsDraftState.forms[draftFormKey(form)];
+        if (!draft) return;
+        form.innerHTML = draft.html;
+        form.querySelectorAll('input, textarea, select').forEach((field, index) => {
+          if (field.type === 'file') return;
+          const saved = draft.fields[(field.name || field.id || field.type || 'field') + ':' + index];
+          if (!saved) return;
+          field.value = saved.value;
+          if (field.type === 'checkbox' || field.type === 'radio') field.checked = saved.checked;
+        });
+      });
+    }
+    const applyProfileBeforeSkillsDrafts = applyAuthenticatedProfile;
+    applyAuthenticatedProfile = function (user, profile) {
+      const role = profile.role === 'admin' ? 'admin' : 'student';
+      if (skillsDraftState.accountId !== user.id || skillsDraftState.role !== role) clearSkillsDrafts();
+      skillsDraftState.accountId = user.id;
+      skillsDraftState.role = role;
+      applyProfileBeforeSkillsDrafts(user, profile);
+    };
     // Once catalogue data is available, replace stale entity routes with their nearest
     // safe Skills page instead of rendering a not-found or blank editor.
     const renderBeforeSkillsRouteValidation = render;
     render = function () {
+      captureSkillsDrafts();
       if (authState.user && location.hash && !isValidSkillsRoute(location.hash, state.role)) {
         const fallback = skillsRouteFallback(location.hash, state.role);
         if (fallback !== location.hash) { location.hash = fallback; return; }
       }
       renderBeforeSkillsRouteValidation();
+      restoreSkillsDrafts();
     };
 
     restoreSupabaseSession();
