@@ -1823,9 +1823,9 @@
         if (messageElement) messageElement.textContent = message; else toast(message);
       } finally { button.disabled = false; }
     }, true);
-    document.addEventListener('click', async e => { const logout = e.target.closest('#logout-button'); if (!logout) return; e.preventDefault(); const { error } = await openfieldSupabase.auth.signOut(); if (error) { console.error('[Supabase Auth] Sign out failed:', error); toast('Could not sign out. Please try again.'); return; } clearResearchSubmissions(); clearWorkspacePermissions(); clearSkillsRouteMemory(); clearSkillsDrafts(); authState.user = null; authState.profile = null; authState.expectedLoginRole = null; authState.ready = true; document.getElementById('logout-button').hidden = true; location.hash = 'home'; renderAuthScreen(); }, { capture: true });
+    document.addEventListener('click', async e => { const logout = e.target.closest('#logout-button'); if (!logout) return; e.preventDefault(); const { error } = await openfieldSupabase.auth.signOut(); if (error) { console.error('[Supabase Auth] Sign out failed:', error); toast('Could not sign out. Please try again.'); return; } clearResearchSubmissions(); clearWorkspacePermissions(); clearSkillsRouteMemory(); authState.user = null; authState.profile = null; authState.expectedLoginRole = null; authState.ready = true; document.getElementById('logout-button').hidden = true; location.hash = 'home'; renderAuthScreen(); }, { capture: true });
     const renderBeforeAuth = render; render = function () { if (!authState.ready || !authState.user) { renderAuthScreen(); return } renderBeforeAuth() };
-    if (openfieldSupabase) { openfieldSupabase.auth.onAuthStateChange((event, session) => { setTimeout(() => { if (event === 'SIGNED_OUT') { const message = authState.authMessage; authState.authMessage = ''; clearResearchSubmissions(); clearWorkspacePermissions(); clearSkillsRouteMemory(); clearSkillsDrafts(); authState.user = null; authState.profile = null; authState.expectedLoginRole = null; authState.ready = true; document.getElementById('logout-button').hidden = true; renderAuthScreen(message); } else if (session?.user && !authState.expectedLoginRole) restoreSupabaseSession(); }, 0); }); }
+    if (openfieldSupabase) { openfieldSupabase.auth.onAuthStateChange((event, session) => { setTimeout(() => { if (event === 'SIGNED_OUT') { const message = authState.authMessage; authState.authMessage = ''; clearResearchSubmissions(); clearWorkspacePermissions(); clearSkillsRouteMemory(); authState.user = null; authState.profile = null; authState.expectedLoginRole = null; authState.ready = true; document.getElementById('logout-button').hidden = true; renderAuthScreen(message); } else if (session?.user && !authState.expectedLoginRole) restoreSupabaseSession(); }, 0); }); }
     const profileBeforeAdminAccess = profile; profile = function () { return profileBeforeAdminAccess() + adminAccessSection() };
 
     /* Stage 1: shared catalogue lives in Supabase; learner records remain local. */
@@ -2125,8 +2125,6 @@
         const route = await work();
         if (route === false) return;
         await loadGlobalCatalogue(true);
-        if (control.matches('form[data-form="course-structured"]')) delete skillsEditorDrafts.courses[control.dataset.id];
-        if (control.matches('form[data-form="club-commitments-admin"]')) delete skillsEditorDrafts.clubs[control.dataset.id];
         toast('Shared catalogue saved.');
         if (route) location.hash = route;
         catalogue.writing = false;
@@ -3818,91 +3816,6 @@
       rememberSkillsRoute();
     };
     window.addEventListener('hashchange', () => rememberSkillsRoute());
-    // Course and Club drafts are data, not DOM snapshots. Each is initialized once
-    // from its authoritative entity and then updated on every edit.
-    const skillsEditorDrafts = { accountId: null, role: null, courses: {}, clubs: {} };
-    function cloneEditorValue(value) { return JSON.parse(JSON.stringify(value)); }
-    function clearSkillsDrafts() { Object.assign(skillsEditorDrafts, { accountId: null, role: null, courses: {}, clubs: {} }); }
-    function courseDraft(id) {
-      if (!id) return null;
-      if (!skillsEditorDrafts.courses[id]) {
-        const source = courses.find(item => String(item.id) === String(id));
-        if (!source) return null;
-        skillsEditorDrafts.courses[id] = cloneEditorValue(source);
-      }
-      return skillsEditorDrafts.courses[id];
-    }
-    function clubDraft(id) {
-      if (!id) return null;
-      if (!skillsEditorDrafts.clubs[id]) {
-        const source = clubs.find(item => String(item.id) === String(id));
-        if (!source) return null;
-        skillsEditorDrafts.clubs[id] = cloneEditorValue(source);
-      }
-      return skillsEditorDrafts.clubs[id];
-    }
-    function syncCourseDraft(form) {
-      const draft = courseDraft(form.dataset.id);
-      if (!draft) return;
-      const data = new FormData(form);
-      Object.assign(draft, {
-        code: String(data.get('code') || ''), title: String(data.get('title') || ''), school: String(data.get('school') || ''),
-        credits: Number(data.get('credits') || 0), club: String(data.get('club') || ''), description: String(data.get('description') || ''),
-        duration: Math.max(1, Number(data.get('duration') || 1)), syllabus: editorSections(form),
-        finalTitle: String(data.get('finalTitle') || ''), finalDescription: String(data.get('finalDescription') || ''),
-        finalSubmissionLink: String(data.get('finalSubmissionLink') || ''),
-        additionalResources: Array.from(form.querySelectorAll('[data-resource-row]')).map((node, index) => ({
-          id: node.dataset.resourceId || '', title: fieldValue(node, 'resource-title-').trim(), link: fieldValue(node, 'resource-link-').trim(), sequence: index + 1
-        }))
-      });
-    }
-    function syncClubDraft(form) {
-      const draft = clubDraft(form.dataset.id);
-      if (!draft) return;
-      const data = new FormData(form);
-      Object.assign(draft, {
-        name: String(data.get('name') || ''), description: String(data.get('description') || ''),
-        frequency: Number(data.get('frequency') || 1), sessionDurationMinutes: String(data.get('sessionDurationMinutes') || '') === '' ? null : Number(data.get('sessionDurationMinutes')),
-        commitments: Array.from(form.querySelectorAll('[data-commitment-row]')).map((node, index) => ({
-          id: fieldValue(node, 'commitment-id-') || '', name: fieldValue(node, 'commitment-name-'),
-          frequency: fieldValue(node, 'commitment-frequency-'), submission: fieldValue(node, 'commitment-submission-'), sequence: index + 1
-        }))
-      });
-    }
-    function syncEditorDraft(form) {
-      if (form?.dataset.form === 'course-structured') syncCourseDraft(form);
-      if (form?.dataset.form === 'club-commitments-admin') syncClubDraft(form);
-    }
-    const adminCourseFormBeforeDrafts = adminCourseForm;
-    adminCourseForm = function (id) {
-      const draft = courseDraft(id);
-      if (!draft) return adminCourseFormBeforeDrafts(id);
-      const index = courses.findIndex(item => String(item.id) === String(id)), saved = courses[index];
-      courses[index] = draft;
-      try { return adminCourseFormBeforeDrafts(id); } finally { courses[index] = saved; }
-    };
-    const adminClubFormBeforeDrafts = adminClubForm;
-    adminClubForm = function (id) {
-      const draft = clubDraft(id);
-      if (!draft) return adminClubFormBeforeDrafts(id);
-      const index = clubs.findIndex(item => String(item.id) === String(id)), saved = clubs[index];
-      clubs[index] = draft;
-      try { return adminClubFormBeforeDrafts(id); } finally { clubs[index] = saved; }
-    };
-    window.addEventListener('input', event => syncEditorDraft(event.target.form), true);
-    window.addEventListener('change', event => syncEditorDraft(event.target.form), true);
-    window.addEventListener('click', event => {
-      const form = event.target.closest('form[data-form="course-structured"],form[data-form="club-commitments-admin"]');
-      if (form && event.target.closest('[data-add-section],[data-remove-section],[data-add-resource],[data-remove-resource],[data-add-commitment],[data-remove-commitment]')) setTimeout(() => syncEditorDraft(form));
-    }, true);
-    const applyProfileBeforeSkillsDrafts = applyAuthenticatedProfile;
-    applyAuthenticatedProfile = function (user, profile) {
-      const role = profile.role === 'admin' ? 'admin' : 'student';
-      if (skillsEditorDrafts.accountId !== user.id || skillsEditorDrafts.role !== role) clearSkillsDrafts();
-      skillsEditorDrafts.accountId = user.id;
-      skillsEditorDrafts.role = role;
-      applyProfileBeforeSkillsDrafts(user, profile);
-    };
     // Once catalogue data is available, replace stale entity routes with their nearest
     // safe Skills page instead of rendering a not-found or blank editor.
     const renderBeforeSkillsRouteValidation = render;
