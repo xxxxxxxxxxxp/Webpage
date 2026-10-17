@@ -1771,6 +1771,139 @@
       border-radius: 12px
     }
 
+    .linked-courses-editor {
+      grid-column: 1/-1;
+      padding: 20px;
+      border: 1px solid #dfd3e7;
+      border-radius: 16px;
+      background: linear-gradient(145deg, #fffafd, #f7f4ff 58%, #f3faff)
+    }
+
+    .linked-courses-editor .section-head {
+      margin: 0 0 14px
+    }
+
+    .linked-course-search {
+      width: 100%;
+      margin-bottom: 15px;
+      padding: 11px 13px;
+      border: 1px solid #d8cbe1;
+      border-radius: 11px;
+      background: rgba(255, 255, 255, .86);
+      color: var(--ink);
+      font: inherit
+    }
+
+    .linked-course-search:focus {
+      outline: 3px solid rgba(118, 89, 159, .12);
+      border-color: var(--secondary)
+    }
+
+    .linked-course-groups {
+      display: grid;
+      gap: 17px;
+      max-height: 460px;
+      overflow: auto;
+      padding-right: 4px
+    }
+
+    .linked-course-group h3 {
+      margin: 0 0 7px;
+      color: var(--secondary);
+      font: 750 11px/1.3 Arial, sans-serif;
+      letter-spacing: .8px;
+      text-transform: uppercase
+    }
+
+    .linked-course-options {
+      display: grid;
+      gap: 7px
+    }
+
+    .linked-course-option {
+      display: grid;
+      grid-template-columns: auto minmax(82px, auto) minmax(0, 1fr);
+      align-items: center;
+      gap: 10px;
+      min-height: 44px;
+      padding: 9px 11px;
+      border: 1px solid #e5dce9;
+      border-radius: 11px;
+      background: rgba(255, 255, 255, .76);
+      cursor: pointer;
+      transition: background .16s ease, border-color .16s ease, box-shadow .16s ease
+    }
+
+    .linked-course-option:hover,
+    .linked-course-option.is-selected {
+      border-color: #cdb7dd;
+      background: var(--secondary-soft)
+    }
+
+    .linked-course-option:focus-within {
+      box-shadow: 0 0 0 3px rgba(118, 89, 159, .11)
+    }
+
+    .linked-course-option input {
+      width: 17px;
+      height: 17px;
+      accent-color: var(--secondary)
+    }
+
+    .linked-course-code {
+      color: var(--secondary);
+      font-size: 12px;
+      font-weight: 850;
+      letter-spacing: .35px
+    }
+
+    .linked-course-title {
+      min-width: 0;
+      font-size: 12.5px;
+      font-weight: 650
+    }
+
+    .linked-course-move-warning {
+      display: none;
+      grid-column: 2/-1;
+      margin-top: -2px;
+      color: #86522f;
+      font-size: 11px;
+      line-height: 1.45
+    }
+
+    .linked-course-option.is-selected .linked-course-move-warning {
+      display: block
+    }
+
+    .linked-course-empty {
+      margin: 0;
+      padding: 15px;
+      border: 1px dashed #d8cbe1;
+      border-radius: 11px;
+      color: var(--muted);
+      font-size: 12px
+    }
+
+    .linked-course-detail-list {
+      display: grid;
+      gap: 8px;
+      margin-top: 14px
+    }
+
+    .linked-course-detail-row {
+      display: grid;
+      grid-template-columns: minmax(70px, auto) minmax(0, 1fr);
+      gap: 10px;
+      padding: 9px 0;
+      border-bottom: 1px solid var(--line);
+      font-size: 12px
+    }
+
+    .linked-course-detail-row:last-child {
+      border-bottom: 0
+    }
+
     @media (max-width: 1100px) {
       .syllabus-week,
       .commitment-form-row {
@@ -1842,6 +1975,10 @@
       .catalog-row-actions {
         width: 100%;
         justify-content: flex-start
+      }
+
+      .linked-course-option {
+        grid-template-columns: auto minmax(68px, auto) minmax(0, 1fr)
       }
 
       .heading {
@@ -2162,11 +2299,71 @@
     function clubCommitmentInstances(club) { const joined = clubJoinDate(club.id); return (club.commitments || []).flatMap(commitment => commitmentPeriods(commitment.frequency, joined).map(period => ({ ...period, clubId: club.id, commitment }))) }
     function commitmentRows(club) { return (club.commitments || []).map((commitment, index) => { const credits = commitment.credits ?? commitmentCredits[commitment.frequency] ?? 0; return '<div class="commitment-form-row" data-commitment-row><input type="hidden" name="commitment-id-' + index + '" value="' + esc(commitment.id || '') + '"><div class="field"><label>Name</label><input name="commitment-name-' + index + '" value="' + esc(commitment.name || '') + '" required></div><div class="field"><label>Duration / Frequency</label><select name="commitment-frequency-' + index + '">' + ['Weekly', 'Monthly', 'Term', 'Semester'].map(value => '<option ' + (value === commitment.frequency ? 'selected' : '') + '>' + value + '</option>').join('') + '</select></div><div class="field"><label>Default credits</label><input name="commitment-credits-' + index + '" type="number" min="0" step="0.5" value="' + esc(credits) + '" required></div><div class="field"><label>Submission / instructions</label><input name="commitment-submission-' + index + '" value="' + esc(commitment.submission || '') + '"></div><button class="btn outline" type="button" data-remove-commitment>Remove</button></div>' }).join('') }
     function editorCommitments(form) { return Array.from(form.querySelectorAll('[data-commitment-row]')).map(node => ({ id: fieldValue(node, 'commitment-id-'), name: fieldValue(node, 'commitment-name-'), frequency: fieldValue(node, 'commitment-frequency-'), submission: fieldValue(node, 'commitment-submission-'), credits: fieldValue(node, 'commitment-credits-') })) }
-    function createEditableClub(savedClub) { const source = savedClub ? JSON.parse(JSON.stringify(savedClub)) : { name: '', description: '', frequency: 1, sessionDurationMinutes: '', commitments: [] }; return { version: 1, id: savedClub?.id || '', name: String(source.name || ''), description: String(source.description || ''), frequency: String(source.frequency ?? 1), sessionDurationMinutes: source.sessionDurationMinutes == null ? '' : String(source.sessionDurationMinutes), commitments: (Array.isArray(source.commitments) ? source.commitments : []).map(commitment => ({ id: commitment.id || '', name: String(commitment.name || ''), frequency: String(commitment.frequency || 'Weekly'), submission: String(commitment.submission || ''), credits: String(commitment.credits ?? commitmentCredits[commitment.frequency] ?? 0) })) }; }
-    function adminClubFormWithCommitments(club, id, draftId) { const commitments = Array.isArray(club.commitments) ? club.commitments : []; return heading('Administrator · Clubs', id ? 'Edit club' : 'Add club', id ? 'Update this club’s details.' : 'Add a club to the shared catalogue.') + '<a class="back" href="#clubs">← Back to clubs</a><section class="panel admin-panel"><form data-form="club-commitments-admin" data-id="' + esc(id || '') + '" data-draft-id="' + esc(draftId) + '" class="form-grid"><div class="field"><label>Name</label><input name="name" value="' + esc(club.name) + '" required></div><div class="field"><label>Frequency per week</label><input name="frequency" type="number" min="1" max="7" value="' + esc(club.frequency) + '"></div><div class="field"><label>Session Duration</label><input name="sessionDurationMinutes" type="number" min="0" step="1" value="' + esc(club.sessionDurationMinutes) + '" placeholder="90"><span class="sub">minutes</span></div><div class="field full"><label>Description</label><textarea name="description">' + esc(club.description) + '</textarea></div><div class="full"><h2>Commitments</h2><div id="commitment-rows">' + commitmentRows({ commitments }) + '</div><button class="btn outline" type="button" data-add-commitment>Add commitment</button></div><div class="full"><button class="btn">' + (id ? 'Save club' : 'Add club') + ' ↗</button></div></form></section>' }
+    function linkedCoursesForClub(clubId) { return clubId ? courses.filter(course => String(course.club || '') === String(clubId)).slice().sort(courseCodeSort) : [] }
+    function linkedCourseIdsForClub(clubId) { return linkedCoursesForClub(clubId).map(course => String(course.id)) }
+    function linkedCoursesEditor(club, clubId) {
+      const selected = new Set((Array.isArray(club.linkedCourseIds) ? club.linkedCourseIds : linkedCourseIdsForClub(clubId)).map(String));
+      const knownSchools = schools.slice().sort(alphabeticallyBy('name'));
+      const groups = knownSchools.map(school => ({ id: String(school.id), name: school.name, courses: courses.filter(course => String(course.school) === String(school.id)).slice().sort(courseCodeSort) }));
+      const ungrouped = courses.filter(course => !knownSchools.some(school => String(school.id) === String(course.school))).slice().sort(courseCodeSort);
+      if (ungrouped.length) groups.push({ id: '', name: 'Other Courses', courses: ungrouped });
+      const rows = groups.filter(group => group.courses.length).map(group => '<section class="linked-course-group" data-linked-course-group><h3>' + esc(group.name) + '</h3><div class="linked-course-options">' + group.courses.map(course => {
+        const checked = selected.has(String(course.id)), otherClub = course.club && String(course.club) !== String(clubId || '') ? clubs.find(item => String(item.id) === String(course.club)) : null;
+        const code = String(course.code || '').trim(), search = [code, course.title, group.name].filter(Boolean).join(' ').toLocaleLowerCase();
+        return '<label class="linked-course-option ' + (checked ? 'is-selected' : '') + '" data-linked-course-option data-search="' + esc(search) + '"><input type="checkbox" name="linkedCourseIds" value="' + esc(course.id) + '" ' + (checked ? 'checked ' : '') + '><span class="linked-course-code">' + esc(code || 'No code') + '</span><span class="linked-course-title">' + esc(course.title) + '</span>' + (otherClub ? '<span class="linked-course-move-warning">Currently linked to ' + esc(otherClub.name) + '. Selecting it here will move it to this club.</span>' : '') + '</label>';
+      }).join('') + '</div></section>').join('');
+      return '<section class="linked-courses-editor"><div class="section-head"><div><h2>Linked Courses</h2><p class="sub">Connect courses that are associated with this club.</p></div><span class="pill" data-linked-course-count>' + selected.size + ' selected</span></div><input class="linked-course-search" type="search" data-course-search placeholder="Search courses..." aria-label="Search courses"><div class="linked-course-groups">' + (rows || '<p class="linked-course-empty">No Courses are available.</p>') + '</div><p class="linked-course-empty" data-linked-course-no-results hidden>No Courses match your search.</p></section>';
+    }
+    function createEditableClub(savedClub) {
+      const source = savedClub ? JSON.parse(JSON.stringify(savedClub)) : { name: '', description: '', frequency: 1, sessionDurationMinutes: '', commitments: [] };
+      return { version: 1, id: savedClub?.id || '', name: String(source.name || ''), description: String(source.description || ''), frequency: String(source.frequency ?? 1), sessionDurationMinutes: source.sessionDurationMinutes == null ? '' : String(source.sessionDurationMinutes), linkedCourseIds: savedClub ? linkedCourseIdsForClub(savedClub.id) : [], commitments: (Array.isArray(source.commitments) ? source.commitments : []).map(commitment => ({ id: commitment.id || '', name: String(commitment.name || ''), frequency: String(commitment.frequency || 'Weekly'), submission: String(commitment.submission || ''), credits: String(commitment.credits ?? commitmentCredits[commitment.frequency] ?? 0) })) };
+    }
+    function adminClubFormWithCommitments(club, id, draftId) {
+      const commitments = Array.isArray(club.commitments) ? club.commitments : [];
+      return heading('Administrator · Clubs', id ? 'Edit club' : 'Add club', id ? 'Update this club’s details.' : 'Add a club to the shared catalogue.') + '<a class="back" href="#clubs">← Back to clubs</a><section class="panel admin-panel"><form data-form="club-commitments-admin" data-id="' + esc(id || '') + '" data-draft-id="' + esc(draftId) + '" class="form-grid"><div class="field"><label>Name</label><input name="name" value="' + esc(club.name) + '" required></div><div class="field"><label>Frequency per week</label><input name="frequency" type="number" min="1" max="7" value="' + esc(club.frequency) + '"></div><div class="field"><label>Session Duration</label><input name="sessionDurationMinutes" type="number" min="0" step="1" value="' + esc(club.sessionDurationMinutes) + '" placeholder="90"><span class="sub">minutes</span></div><div class="field full"><label>Description</label><textarea name="description">' + esc(club.description) + '</textarea></div>' + linkedCoursesEditor(club, id) + '<div class="full"><h2>Commitments</h2><div id="commitment-rows">' + commitmentRows({ commitments }) + '</div><button class="btn outline" type="button" data-add-commitment>Add commitment</button></div><div class="full"><button class="btn">' + (id ? 'Save club' : 'Add club') + ' ↗</button></div></form></section>';
+    }
     function commitmentStudentCard(instance) { const submission = state.clubCommitmentSubmissions[commitmentSubmissionKey(instance.clubId, instance.commitment.id, instance.key)], days = Math.ceil((instance.end - new Date()) / 86400000), completed = !!submission?.completed; return '<article class="commitment-card ' + (completed ? 'completed' : '') + '"><h3>' + esc(instance.commitment.name) + '</h3><div class="commitment-meta"><span>' + instance.commitment.frequency + '</span><span>Deadline: ' + instance.end.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) + '</span></div>' + (completed ? '<p><strong>✓ Completed</strong></p><p class="sub">' + esc(submission.link || submission.file || 'Submitted evidence') + '</p>' : '<form data-form="club-commitment" data-club="' + instance.clubId + '" data-commitment="' + instance.commitment.id + '" data-period="' + instance.key + '" class="form-grid"><div class="field full"><label>Submit evidence link</label><input name="link" type="url" placeholder="https://"></div><div class="field full"><label>Or attach a file</label><input name="file" type="file"></div><button class="btn" type="submit">Submit</button></form>') + '</article>' }
-    function clubDetailWithCommitments(id) { const club = clubs.find(c => c.id === id); if (!club) return heading('Not found', 'Club not found.', 'Return to Clubs & societies.'); const joined = state.clubs.includes(id), records = state.attendance[id] || {}, dates = Array.from({ length: 7 }, (_, i) => { const date = new Date(); date.setDate(date.getDate() - i); return date.toISOString().slice(0, 10) }), instances = joined ? clubCommitmentInstances(club).filter(instance => { const submission = state.clubCommitmentSubmissions[commitmentSubmissionKey(instance.clubId, instance.commitment.id, instance.key)]; return instance.end >= new Date() || submission }) : []; return '<a class="back" href="#clubs">← Back to clubs & societies</a>' + heading('Clubs & societies', club.name, 'Learning together, with commitments you can complete at your own pace.') + '<section class="detail"><section class="panel"><div class="eyebrow">Club details</div><div class="aside-row"><span>Frequency</span><strong>' + club.frequency + ' times per week</strong></div>' + (joined ? '<div class="submission"><h2>Choose your attendance days</h2><p class="sub">Select up to ' + club.frequency + ' days each week.</p><div class="attendance-days">' + attendanceDays(club) + '</div><h2>My attendance</h2><div class="attendance-history">' + dates.map(date => '<div class="aside-row"><span>' + new Date(date + 'T12:00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) + '</span><button class="btn ' + (records[date] ? 'outline' : '') + '" data-attend="' + club.id + '|' + date + '">' + (records[date] ? 'Attended ✓' : 'Mark attended') + '</button></div>').join('') + '</div></div>' : '<p class="notice">Join this club to view commitments and record attendance.</p>') + '</section><aside>' + (joined && club.commitments?.length ? '<div class="panel"><div class="eyebrow">Commitments</div><div class="commitment-list">' + instances.map(commitmentStudentCard).join('') + '</div></div>' : '') + '<div class="panel"><div class="eyebrow">Your membership</div><button class="btn ' + (joined ? 'outline' : '') + '" data-club="' + club.id + '">' + (joined ? 'Leave club' : 'Join club') + '</button></div></aside></section>' }
-    clubDetail = clubDetailWithCommitments; adminClubForm = function (id) { const selection = resolveEditorDraft('club', id), entityId = id || selection.draft?.id || '', savedClub = entityId ? clubs.find(club => String(club.id) === String(entityId)) : null; if (id && !savedClub && !selection.draft) return heading('Not found', 'Club not found.', 'Return to Clubs & societies.'); const club = selection.draft || createEditableClub(savedClub); return adminClubFormWithCommitments(club, entityId, selection.draftId); };
+    function linkedCourseDetailList(clubId) {
+      const linked = linkedCoursesForClub(clubId);
+      return '<div class="section-head"><h2>Linked Courses</h2><span class="pill">' + linked.length + '</span></div>' + (linked.length ? '<div class="linked-course-detail-list">' + linked.map(course => '<a class="linked-course-detail-row" href="#course/' + esc(course.id) + '"><strong class="linked-course-code">' + esc(String(course.code || '').trim() || 'Course') + '</strong><span>' + esc(course.title) + '</span></a>').join('') + '</div>' : '<p class="sub">No Courses are linked to this club.</p>');
+    }
+    function clubDetailWithCommitments(id) {
+      const club = clubs.find(c => c.id === id);
+      if (!club) return heading('Not found', 'Club not found.', 'Return to Clubs & societies.');
+      const joined = state.clubs.includes(id), records = state.attendance[id] || {}, dates = Array.from({ length: 7 }, (_, i) => { const date = new Date(); date.setDate(date.getDate() - i); return date.toISOString().slice(0, 10) });
+      const instances = joined ? clubCommitmentInstances(club).filter(instance => { const submission = state.clubCommitmentSubmissions[commitmentSubmissionKey(instance.clubId, instance.commitment.id, instance.key)]; return instance.end >= new Date() || submission; }) : [];
+      return '<a class="back" href="#clubs">← Back to clubs & societies</a>' + heading('Clubs & societies', club.name, 'Learning together, with commitments you can complete at your own pace.') + '<section class="detail"><section class="panel"><div class="eyebrow">Club details</div><div class="aside-row"><span>Frequency</span><strong>' + club.frequency + ' times per week</strong></div>' + linkedCourseDetailList(club.id) + (joined ? '<div class="submission"><h2>Choose your attendance days</h2><p class="sub">Select up to ' + club.frequency + ' days each week.</p><div class="attendance-days">' + attendanceDays(club) + '</div><h2>My attendance</h2><div class="attendance-history">' + dates.map(date => '<div class="aside-row"><span>' + new Date(date + 'T12:00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) + '</span><button class="btn ' + (records[date] ? 'outline' : '') + '" data-attend="' + club.id + '|' + date + '">' + (records[date] ? 'Attended ✓' : 'Mark attended') + '</button></div>').join('') + '</div></div>' : '<p class="notice">Join this club to view commitments and record attendance.</p>') + '</section><aside>' + (joined && club.commitments?.length ? '<div class="panel"><div class="eyebrow">Commitments</div><div class="commitment-list">' + instances.map(commitmentStudentCard).join('') + '</div></div>' : '') + '<div class="panel"><div class="eyebrow">Your membership</div><button class="btn ' + (joined ? 'outline' : '') + '" data-club="' + club.id + '">' + (joined ? 'Leave club' : 'Join club') + '</button></div></aside></section>';
+    }
+    clubDetail = clubDetailWithCommitments;
+    adminClubForm = function (id) {
+      const selection = resolveEditorDraft('club', id), entityId = id || selection.draft?.id || '', savedClub = entityId ? clubs.find(club => String(club.id) === String(entityId)) : null;
+      if (id && !savedClub && !selection.draft) return heading('Not found', 'Club not found.', 'Return to Clubs & societies.');
+      const club = selection.draft || createEditableClub(savedClub);
+      if (!Array.isArray(club.linkedCourseIds)) club.linkedCourseIds = linkedCourseIdsForClub(entityId);
+      return adminClubFormWithCommitments(club, entityId, selection.draftId);
+    };
+    document.addEventListener('input', event => {
+      const search = event.target.closest('[data-course-search]');
+      if (!search) return;
+      const editor = search.closest('.linked-courses-editor'), query = String(search.value || '').trim().toLocaleLowerCase();
+      let visible = 0;
+      editor.querySelectorAll('[data-linked-course-group]').forEach(group => {
+        let groupVisible = 0;
+        group.querySelectorAll('[data-linked-course-option]').forEach(option => { const show = !query || option.dataset.search.includes(query); option.hidden = !show; if (show) { visible++; groupVisible++; } });
+        group.hidden = groupVisible === 0;
+      });
+      const empty = editor.querySelector('[data-linked-course-no-results]');
+      if (empty) empty.hidden = visible > 0;
+    }, true);
+    document.addEventListener('change', event => {
+      const checkbox = event.target.closest('input[name="linkedCourseIds"]');
+      if (!checkbox) return;
+      const form = checkbox.form, option = checkbox.closest('[data-linked-course-option]');
+      option?.classList.toggle('is-selected', checkbox.checked);
+      const count = form?.querySelector('[data-linked-course-count]'), selected = form ? form.querySelectorAll('input[name="linkedCourseIds"]:checked').length : 0;
+      if (count) count.textContent = selected + ' selected';
+      if (form) syncEditorDraft(form);
+    }, true);
     const baseCreditsWithCommitments = credits; credits = function () { return baseCreditsWithCommitments() + Object.values(state.clubCommitmentSubmissions || {}).filter(item => item?.completed && item.awarded).reduce((total, item) => total + Number(item.credits || 0), 0) };
     function deadlinesSection() { const now = new Date(), items = clubCommitmentInstancesForDeadlines().filter(item => !item.submission && item.end >= now).sort((a, b) => a.end - b.end).slice(0, 20); return '<div class="section-head"><h2>Deadlines</h2></div><section class="panel"><div class="deadline-list">' + (items.length ? items.map(item => '<a class="deadline-item" href="#club/' + item.clubId + '"><span><strong>' + esc(item.commitment.name) + '</strong><small>' + esc(item.club.name) + ' · ' + item.commitment.frequency + '</small></span><span class="pill">Due in ' + Math.max(0, Math.ceil((item.end - now) / 86400000)) + ' days</span></a>').join('') : '<p class="sub">No outstanding club commitment deadlines.</p>') + '</div></section>' }
     function clubCommitmentInstancesForDeadlines() { return clubs.filter(club => state.clubs.includes(club.id)).flatMap(club => clubCommitmentInstances(club).map(instance => ({ ...instance, club, submission: state.clubCommitmentSubmissions[commitmentSubmissionKey(instance.clubId, instance.commitment.id, instance.key)] }))) }
@@ -2636,7 +2833,7 @@
     }
     function clubDraftFromForm(form) {
       const data = new FormData(form);
-      return { version: SKILLS_DRAFT_VERSION, id: form.dataset.id || '', name: String(data.get('name') || ''), description: String(data.get('description') || ''), frequency: String(data.get('frequency') ?? ''), sessionDurationMinutes: String(data.get('sessionDurationMinutes') ?? ''), commitments: editorCommitments(form) };
+      return { version: SKILLS_DRAFT_VERSION, id: form.dataset.id || '', name: String(data.get('name') || ''), description: String(data.get('description') || ''), frequency: String(data.get('frequency') ?? ''), sessionDurationMinutes: String(data.get('sessionDurationMinutes') ?? ''), linkedCourseIds: data.getAll('linkedCourseIds').map(String), commitments: editorCommitments(form) };
     }
     function syncEditorDraft(form) {
       if (form?.dataset.form === 'course-structured') { const draft = courseDraftFromForm(form); writeDraft('course', editorDraftId(form), draft); return draft; }
@@ -2719,6 +2916,8 @@
       if (sessionDurationMinutes !== null && (!Number.isInteger(sessionDurationMinutes) || sessionDurationMinutes < 0)) throw new Error('Session Duration must be blank or a whole number of minutes greater than or equal to 0.');
       const old = clubs.find(club => club.id === form.dataset.id);
       if (form.dataset.id && !old) throw new Error('The club is no longer available.');
+      const selectedCourseIds = [...new Set((Array.isArray(draft.linkedCourseIds) ? draft.linkedCourseIds : []).map(String))];
+      if (selectedCourseIds.some(id => !courses.some(course => String(course.id) === id))) throw new Error('One or more selected Courses are no longer available. Reload before saving.');
       const commitmentNodes = Array.from(form.querySelectorAll('[data-commitment-row]')), inputs = (Array.isArray(draft.commitments) ? draft.commitments : []).map((commitment, index) => ({
         node: commitmentNodes[index] || null, draft: commitment, id: commitment.id || '', name: String(commitment.name || '').trim(),
         instructions: String(commitment.submission || '').trim(), frequency: String(commitment.frequency || '').toLowerCase(), credits: Number(commitment.credits)
@@ -2743,6 +2942,16 @@
         // Retire removed definitions so existing student references remain valid.
         for (const definition of existing) if (definition.active && !kept.has(definition.id))
           await saveCatalogueRow('club_commitment_definitions', definition.id, { active: false });
+      }
+      const previouslyLinked = new Set(catalogue.rows.courses.filter(course => String(course.linked_club_id || '') === String(row.id)).map(course => String(course.id)));
+      const selected = new Set(selectedCourseIds);
+      const additions = selectedCourseIds.filter(courseId => !previouslyLinked.has(courseId));
+      const removals = [...previouslyLinked].filter(courseId => !selected.has(courseId));
+      try {
+        for (const courseId of additions) await saveCatalogueRow('courses', courseId, { linked_club_id: row.id });
+        for (const courseId of removals) await saveCatalogueRow('courses', courseId, { linked_club_id: null });
+      } catch (error) {
+        throw new Error((old ? 'The Club details were saved' : 'The Club was created') + ', but its Course links could not all be updated: ' + (error?.message || String(error)));
       }
       return 'clubs';
     }
