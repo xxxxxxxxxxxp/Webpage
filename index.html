@@ -86,7 +86,9 @@
       --serif: var(--sans)
     }
 
-    * {
+    *,
+    *::before,
+    *::after {
       box-sizing: border-box
     }
 
@@ -2009,6 +2011,531 @@
         scroll-behavior: auto !important;
         transition-duration: .01ms !important;
         animation-duration: .01ms !important
+      }
+    }
+  </style>
+  <style>
+    /* Responsive containment: every page region may shrink before it wraps. */
+    html,
+    body,
+    .layout,
+    .main,
+    #app,
+    .content {
+      width: 100%;
+      max-width: 100%;
+      min-width: 0
+    }
+
+    body {
+      /* Final guard only; the rules below remove the underlying overflow. */
+      overflow-x: clip
+    }
+
+    img,
+    svg,
+    video,
+    canvas,
+    iframe {
+      max-width: 100%;
+      height: auto
+    }
+
+    .content > *,
+    .content :where(.heading, .hero, .stats, .stat, .grid, .card, .card-body, .card-footer, .detail, .panel, .section-head, .stack, .form-grid, .field, .catalog-list, .catalog-row, .catalog-row-main, .catalog-row-actions, .syllabus-editor, .syllabus-week, .resource-row, .commitment-form-row, .commitment-card, .submission, .grade-panel, .grade-row, .deadline-item, .linked-courses-editor, .linked-course-group, .linked-course-options, .linked-course-option, .linked-course-title, .linked-course-detail-list, .linked-course-detail-row, .week > div, .final-check > div, aside, form) {
+      min-width: 0;
+      max-width: 100%
+    }
+
+    .content :where(h1, h2, h3, p, a, span, strong, small, label, .notice, .sub, .catalog-row-title, .catalog-row-description, .catalog-row-meta, .linked-course-title, .linked-course-move-warning, .syllabus-summary) {
+      overflow-wrap: anywhere;
+      word-break: break-word
+    }
+
+    .content :where(input, select, textarea, button),
+    .topbar :where(button, a),
+    .sidebar :where(button, a) {
+      min-width: 0;
+      max-width: 100%
+    }
+
+    .field input,
+    .field select,
+    .field textarea,
+    .linked-course-search {
+      width: 100%;
+      max-width: 100%
+    }
+
+    input[type="file"] {
+      overflow: hidden
+    }
+
+    .btn,
+    .filter,
+    .back,
+    .pill,
+    .role-badge {
+      max-width: 100%;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      text-align: center
+    }
+
+    .heading,
+    .section-head,
+    .card-footer,
+    .meta,
+    .topbar,
+    .role-switch,
+    .aside-row,
+    footer {
+      flex-wrap: wrap
+    }
+
+    .heading > div,
+    .section-head > div,
+    .topbar > *,
+    .role-switch > *,
+    .aside-row > *,
+    footer > * {
+      min-width: 0
+    }
+
+    .content {
+      padding: clamp(24px, 3.25vw, 44px) clamp(16px, 3.25vw, 44px) 32px
+    }
+
+    .topbar {
+      padding-inline: clamp(16px, 3.25vw, 44px)
+    }
+
+    .grid {
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+      gap: clamp(12px, 2vw, 20px)
+    }
+
+    .stats {
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
+      gap: clamp(10px, 1.5vw, 15px)
+    }
+
+    .content .form-grid,
+    .syllabus-week,
+    .commitment-form-row {
+      grid-template-columns: repeat(2, minmax(0, 1fr))
+    }
+
+    .form-grid > .full {
+      min-width: 0
+    }
+
+    .form-grid > .full:last-child:has(> .btn) {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px
+    }
+
+    .admin-actions,
+    .catalog-row-actions,
+    .syllabus-week .section-actions {
+      min-width: 0;
+      max-width: 100%;
+      flex-wrap: wrap
+    }
+
+    .catalog-row {
+      flex-wrap: wrap;
+      gap: clamp(10px, 2vw, 20px)
+    }
+
+    .catalog-row-main {
+      flex: 1 1 320px
+    }
+
+    .catalog-row-actions {
+      flex: 0 1 auto
+    }
+
+    .course-row-code {
+      font-size: clamp(1.05rem, 2.4vw, 1.45rem);
+      overflow-wrap: anywhere
+    }
+
+    .detail {
+      grid-template-columns: minmax(0, 1fr) minmax(220px, 280px)
+    }
+
+    .resource-row {
+      grid-template-columns: repeat(2, minmax(0, 1fr)) auto
+    }
+
+    .linked-course-option {
+      grid-template-columns: auto minmax(68px, auto) minmax(0, 1fr)
+    }
+
+    .attendance-days {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 14px
+    }
+
+    .attendance-days label {
+      min-width: 0;
+      overflow-wrap: anywhere
+    }
+
+    table {
+      display: block;
+      width: 100%;
+      max-width: 100%;
+      overflow-x: auto;
+      overscroll-behavior-inline: contain
+    }
+
+    th,
+    td {
+      overflow-wrap: anywhere;
+      word-break: break-word
+    }
+
+    dialog,
+    [role="dialog"],
+    .modal {
+      width: min(640px, calc(100vw - 32px));
+      max-width: calc(100vw - 32px);
+      max-height: calc(100vh - 32px);
+      overflow: auto
+    }
+
+    #admin-notification-panel {
+      left: auto;
+      right: clamp(12px, 3vw, 24px) !important;
+      width: min(380px, calc(100vw - 24px)) !important;
+      max-width: calc(100vw - 24px)
+    }
+
+    @media (max-width: 1100px) and (min-width: 641px) {
+      .syllabus-week,
+      .commitment-form-row {
+        grid-template-columns: repeat(2, minmax(0, 1fr))
+      }
+
+      .syllabus-week h3,
+      .syllabus-week .section-actions,
+      .commitment-form-row > .btn {
+        grid-column: 1 / -1
+      }
+
+      .resource-row {
+        grid-template-columns: repeat(2, minmax(0, 1fr))
+      }
+
+      .resource-row > .btn {
+        grid-column: 1 / -1;
+        justify-self: end
+      }
+    }
+
+    @media (max-width: 820px) {
+      .detail {
+        grid-template-columns: minmax(0, 1fr)
+      }
+
+      .hero {
+        padding: clamp(24px, 5vw, 32px)
+      }
+    }
+
+    @media (max-width: 760px) {
+      .layout {
+        display: block
+      }
+
+      .sidebar {
+        position: relative;
+        top: auto;
+        width: 100%;
+        max-width: 100%;
+        height: auto;
+        padding: 14px clamp(12px, 3vw, 18px)
+      }
+
+      .sidebar nav {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 135px), 1fr));
+        gap: 6px;
+        width: 100%;
+        max-width: 100%;
+        overflow: visible;
+        padding: 0
+      }
+
+      .sidebar nav a {
+        width: 100%;
+        min-width: 0;
+        white-space: normal;
+        line-height: 1.25;
+        justify-content: center;
+        text-align: center
+      }
+
+      .topbar {
+        height: auto;
+        min-height: 60px;
+        gap: 8px 12px;
+        padding-block: 10px
+      }
+
+      #breadcrumb {
+        flex: 1 1 150px;
+        max-width: none;
+        white-space: normal;
+        overflow: visible;
+        text-overflow: clip
+      }
+
+      .role-switch {
+        flex: 1 1 auto;
+        justify-content: flex-end
+      }
+
+      .content {
+        padding: clamp(20px, 4vw, 28px) clamp(14px, 3.5vw, 20px) 26px
+      }
+
+      .heading {
+        align-items: flex-start
+      }
+
+      h1 {
+        font-size: clamp(1.9rem, 8vw, 2.125rem);
+        letter-spacing: -.9px
+      }
+
+      h2,
+      .section-head h2 {
+        font-size: clamp(1.25rem, 5vw, 1.45rem)
+      }
+
+      .hero h2 {
+        font-size: clamp(1.65rem, 7vw, 1.9rem)
+      }
+
+      .catalog-row {
+        flex-direction: row;
+        align-items: center
+      }
+
+      .catalog-row-actions {
+        width: auto;
+        justify-content: flex-end
+      }
+
+      .panel,
+      .card-body,
+      .auth-card {
+        padding: clamp(16px, 4vw, 20px)
+      }
+
+      .syllabus-week,
+      .commitment-form-row {
+        padding: clamp(14px, 3vw, 18px)
+      }
+    }
+
+    @media (max-width: 640px) {
+      .content .form-grid,
+      .syllabus-week,
+      .commitment-form-row,
+      .resource-row {
+        grid-template-columns: minmax(0, 1fr)
+      }
+
+      .form-grid .full,
+      .syllabus-week h3,
+      .syllabus-week .section-actions,
+      .commitment-form-row > .btn,
+      .resource-row > .btn {
+        grid-column: 1
+      }
+
+      .resource-row > .btn,
+      .commitment-form-row > .btn {
+        width: 100%;
+        justify-self: stretch
+      }
+
+      .heading {
+        flex-direction: column;
+        gap: 8px
+      }
+
+      .heading > .pill {
+        display: inline-flex
+      }
+
+      .grade-row {
+        grid-template-columns: minmax(0, 1fr)
+      }
+
+      .content .grade-row select,
+      .grade-row input {
+        width: 100%;
+        min-width: 0
+      }
+
+      footer {
+        flex-direction: column
+      }
+    }
+
+    @media (max-width: 520px) {
+      .content {
+        padding: 18px 12px 24px
+      }
+
+      .topbar {
+        padding-inline: 12px
+      }
+
+      .catalog-row {
+        align-items: stretch;
+        flex-direction: column;
+        padding: 14px;
+        gap: 11px
+      }
+
+      .catalog-row-main {
+        flex-basis: auto
+      }
+
+      .catalog-row-actions {
+        width: 100%;
+        justify-content: flex-start
+      }
+
+      .catalog-row-actions .btn,
+      .admin-actions .btn {
+        flex: 1 1 120px
+      }
+
+      .section-head {
+        align-items: flex-start
+      }
+
+      .card-footer {
+        align-items: flex-start
+      }
+
+      .aside-row {
+        align-items: flex-start;
+        gap: 6px 12px
+      }
+
+      .linked-course-option {
+        grid-template-columns: auto minmax(0, 1fr);
+        align-items: start
+      }
+
+      .linked-course-title,
+      .linked-course-move-warning {
+        grid-column: 2
+      }
+
+      .linked-course-move-warning {
+        margin-top: 0
+      }
+
+      #admin-notification-panel {
+        top: 68px !important;
+        left: 12px !important;
+        right: 12px !important;
+        width: auto !important;
+        max-width: none
+      }
+    }
+
+    @media (max-width: 380px) {
+      body {
+        font-size: 14px
+      }
+
+      .sidebar {
+        padding: 10px
+      }
+
+      .sidebar nav {
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 125px), 1fr))
+      }
+
+      .sidebar nav a {
+        padding: 8px 7px;
+        font-size: 10.5px
+      }
+
+      .topbar {
+        padding: 8px 10px
+      }
+
+      #breadcrumb {
+        flex-basis: 100%
+      }
+
+      .role-switch {
+        width: 100%;
+        justify-content: space-between
+      }
+
+      .role-switch .btn,
+      .profile-link {
+        padding-inline: 9px
+      }
+
+      .content {
+        padding: 16px 10px 22px
+      }
+
+      .panel,
+      .card-body,
+      .auth-card,
+      .syllabus-week,
+      .resource-row,
+      .commitment-form-row,
+      .commitment-card,
+      .submission {
+        padding: 13px
+      }
+
+      .btn,
+      .filter {
+        padding-inline: 10px
+      }
+
+      .catalog-row-actions .btn,
+      .admin-actions .btn,
+      .form-grid > .full:last-child > .btn {
+        flex: 1 1 100%;
+        width: 100%
+      }
+
+      .week,
+      .final-check {
+        gap: 10px;
+        padding: 15px 2px
+      }
+
+      .linked-course-detail-row {
+        grid-template-columns: minmax(0, 1fr)
+      }
+
+      .aside-row {
+        flex-direction: column
+      }
+
+      .aside-row .btn {
+        width: 100%
       }
     }
   </style>
