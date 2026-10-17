@@ -1709,6 +1709,81 @@
       font-size: 11px
     }
 
+    .book-row-summary,
+    .book-row-title-line {
+      display: flex;
+      align-items: center;
+      min-width: 0
+    }
+
+    .book-row-summary {
+      flex: 1 1 320px;
+      gap: 8px
+    }
+
+    .book-row-summary .catalog-row-main {
+      flex: 1 1 auto
+    }
+
+    .book-row-title-line {
+      flex-wrap: wrap;
+      gap: 4px 8px
+    }
+
+    .book-recommended-toggle {
+      display: inline-grid;
+      flex: 0 0 30px;
+      place-items: center;
+      width: 30px;
+      height: 30px;
+      padding: 0;
+      color: #9b8ba5;
+      background: #fbf8fc;
+      border: 1px solid #dfd5e5;
+      border-radius: 10px;
+      font-size: 18px;
+      line-height: 1;
+      cursor: pointer;
+      transition: color .18s ease, background .18s ease, border-color .18s ease, transform .18s ease
+    }
+
+    .book-recommended-toggle:hover:not(:disabled) {
+      color: #ba7d19;
+      background: #fff8df;
+      border-color: #ead39d;
+      transform: translateY(-1px)
+    }
+
+    .book-recommended-toggle[aria-pressed="true"] {
+      color: #b9780b;
+      background: linear-gradient(135deg, #fff8d9, #fff0e7);
+      border-color: #e5c477
+    }
+
+    .book-recommended-toggle:disabled {
+      cursor: wait;
+      opacity: .58
+    }
+
+    .book-recommended-badge {
+      display: inline-flex;
+      align-items: center;
+      flex: 0 0 auto;
+      padding: 2px 7px;
+      color: #98650d;
+      background: linear-gradient(135deg, #fff8da, #fff0e9);
+      border: 1px solid #edd59c;
+      border-radius: 999px;
+      font-size: 9.5px;
+      font-weight: 800;
+      line-height: 1.35;
+      letter-spacing: .15px
+    }
+
+    .reading-level-section > .section-head {
+      margin-top: 0
+    }
+
     .course-row-code {
       display: block;
       margin-bottom: 5px;
@@ -2518,6 +2593,12 @@
         width: auto
       }
 
+      .book-row-summary {
+        flex-basis: auto;
+        width: 100%;
+        align-items: flex-start
+      }
+
       .section-head {
         align-items: flex-start
       }
@@ -2915,22 +2996,32 @@
     /* Intercept the legacy club saver so it no longer reads or overwrites Symbol. */
     app.addEventListener('submit', e => { const form = e.target; if (!['club-admin-create', 'club-edit'].includes(form.dataset.form)) return; e.preventDefault(); e.stopImmediatePropagation(); const data = new FormData(form), name = String(data.get('name') || '').trim(); if (!name) { toast('Enter a club name. Your form is still here.'); return } const details = { name, description: String(data.get('description') || '').trim(), color: '', frequency: Math.max(1, Math.min(7, Number(data.get('frequency')) || 1)) }; if (form.dataset.form === 'club-admin-create') clubs.push({ id: 'club-' + Date.now(), ...details }); else { const club = clubs.find(item => item.id === form.dataset.id); if (!club) { toast('Club could not be found. Your form is still here.'); return } Object.assign(club, details) } if (!persist()) { toast('Club could not be saved. Your form is still populated.'); return } toast(form.dataset.form === 'club-edit' ? 'Club updated.' : 'Club added.'); location.hash = 'clubs'; render() }, true);
     /* Focused fixes for course enrolment and the reading programme. */
+    function readingLevelLabel(level) { return String(level.name || level.title || '').trim() || 'Level ' + Number(level.level_number) }
+    function readingLevelOptions(selectedLevel) { return readingLevelsData.map(level => '<option value="' + Number(level.level_number) + '" ' + (Number(selectedLevel) === Number(level.level_number) ? 'selected' : '') + '>' + esc(readingLevelLabel(level)) + '</option>').join('') }
+    function readingBookSort(a, b) { return Number(Boolean(b.recommended)) - Number(Boolean(a.recommended)) || alphabeticallyBy('title')(a, b) }
     function readingLevels(admin) {
       if (!readingLevelsData.length) return '<section class="panel"><p class="sub">No reading levels have been configured in Supabase.</p></section>';
-      const bookRow = (book, unlocked) => { const done = !!state.submissions.reviews?.[book.id]; return '<article class="catalog-row book-card ' + (done ? 'completed-book' : '') + '" data-book-row><div class="catalog-row-main"><h3 class="catalog-row-title">' + esc(book.title) + '</h3><div class="catalog-row-meta"><span>' + esc(book.author || 'Author not listed') + ' · Level ' + Number(book.level) + '</span>' + (done ? '<span>Completed ✓</span>' : '') + '</div></div><div class="catalog-row-actions">' + (admin ? '<button class="btn outline" type="button" data-edit-reading-book="' + book.id + '">Edit</button> <button class="btn outline" type="button" data-delete-book="' + book.id + '">Delete</button>' : (unlocked ? '<a class="btn outline" href="#book/' + book.id + '">' + (done ? 'View review' : 'Write review') + ' →</a>' : '<span class="sub">Locked</span>')) + '</div></article>' };
-      const orderedBooks = state.books.slice().sort(alphabeticallyBy('title'));
-      if (admin) {
-        const rows = orderedBooks.map(book => bookRow(book, true)).join('');
-        const levelOptions = readingLevelsData.map(level => '<option value="' + Number(level.level_number) + '">Level ' + Number(level.level_number) + '</option>').join('');
-        return '<section class="panel"><div class="section-head" style="margin-top:0"><h2>Books</h2><span class="pill">' + orderedBooks.length + ' title' + (orderedBooks.length === 1 ? '' : 's') + '</span></div>' + (rows ? '<div class="catalog-list book-list">' + rows + '</div>' : '<p class="sub">No books have been added yet.</p>') + '<div class="section-head"><h3>Add book</h3></div><form data-form="book-admin" class="form-grid"><div class="field"><label>Title</label><input name="title" required></div><div class="field"><label>Author</label><input name="author"></div><div class="field"><label>Reading level</label><select name="level">' + levelOptions + '</select></div><div class="full"><button class="btn outline">+ Add book</button></div></form></section>';
-      }
-      const grouped = readingLevelsData.map(level => orderedBooks.filter(book => Number(book.level) === Number(level.level_number)));
-      return '<div class="stack">' + grouped.map((books, i) => { const unlocked = i === 0 || (grouped[i - 1].length > 0 && grouped[i - 1].every(book => state.submissions.reviews?.[book.id])); const rows = books.map(book => bookRow(book, unlocked)).join(''); return '<section class="panel ' + (!unlocked ? 'locked' : '') + '"><div class="section-head" style="margin-top:0"><h2>Level ' + Number(readingLevelsData[i].level_number) + '</h2><span class="pill">' + (unlocked ? 'Unlocked' : 'Locked') + '</span></div>' + (rows ? '<div class="catalog-list book-list">' + rows + '</div>' : '<p class="sub">No books in this level yet.</p>') + '</section>' }).join('') + '</div>';
+      const bookRow = (book, unlocked) => {
+        const done = !!state.submissions.reviews?.[book.id], recommended = book.recommended === true;
+        const recommendation = admin
+          ? '<button class="book-recommended-toggle" type="button" data-toggle-book-recommended="' + esc(book.id) + '" aria-pressed="' + recommended + '" aria-label="' + (recommended ? 'Remove ' : 'Mark ') + esc(book.title) + (recommended ? ' from recommendations' : ' as recommended') + '" title="' + (recommended ? 'Recommended — click to remove' : 'Mark as recommended') + '">' + (recommended ? '★' : '☆') + '</button>'
+          : recommended ? '<span class="book-recommended-badge" title="Recommended book">★ Recommended</span>' : '';
+        return '<article class="catalog-row book-card ' + (done ? 'completed-book' : '') + '" data-book-row><div class="book-row-summary">' + (admin ? recommendation : '') + '<div class="catalog-row-main"><div class="book-row-title-line"><h3 class="catalog-row-title">' + esc(book.title) + '</h3>' + (!admin ? recommendation : '') + '</div><div class="catalog-row-meta"><span>' + esc(book.author || 'Author not listed') + '</span>' + (done ? '<span>Completed ✓</span>' : '') + '</div></div></div><div class="catalog-row-actions">' + (admin ? '<button class="btn outline" type="button" data-edit-reading-book="' + esc(book.id) + '">Edit</button> <button class="btn outline" type="button" data-delete-book="' + esc(book.id) + '">Delete</button>' : (unlocked ? '<a class="btn outline" href="#book/' + esc(book.id) + '">' + (done ? 'View review' : 'Write review') + ' →</a>' : '<span class="sub">Locked</span>')) + '</div></article>';
+      };
+      const levels = readingLevelsData.slice().sort((a, b) => Number(a.level_number) - Number(b.level_number));
+      const grouped = levels.map(level => state.books.filter(book => Number(book.level) === Number(level.level_number)).sort(readingBookSort));
+      const sections = grouped.map((books, index) => {
+        const level = levels[index], unlocked = admin || index === 0 || (grouped[index - 1].length > 0 && grouped[index - 1].every(book => state.submissions.reviews?.[book.id]));
+        const rows = books.map(book => bookRow(book, unlocked)).join(''), status = admin ? books.length + ' book' + (books.length === 1 ? '' : 's') : unlocked ? 'Unlocked' : 'Locked';
+        return '<section class="panel reading-level-section ' + (!unlocked ? 'locked' : '') + '"><div class="section-head"><h2>' + esc(readingLevelLabel(level)) + '</h2><span class="pill">' + status + '</span></div>' + (rows ? '<div class="catalog-list book-list">' + rows + '</div>' : '<p class="sub">' + (admin ? 'No books yet.' : unlocked ? 'No books in this level yet.' : 'Complete every book in ' + esc(readingLevelLabel(levels[index - 1])) + ' to unlock this level.') + '</p>') + '</section>';
+      }).join('');
+      if (!admin) return '<div class="stack">' + sections + '</div>';
+      return '<section class="panel admin-panel"><div class="section-head" style="margin-top:0"><div><h2>Add book</h2><p class="sub">New books start as not recommended.</p></div><span class="pill">' + state.books.length + ' title' + (state.books.length === 1 ? '' : 's') + '</span></div><form data-form="book-admin" class="form-grid"><div class="field"><label>Title</label><input name="title" required></div><div class="field"><label>Author</label><input name="author"></div><div class="field"><label>Reading level</label><select name="level">' + readingLevelOptions(levels[0]?.level_number) + '</select></div><div class="full"><button class="btn outline">+ Add book</button></div></form></section><div class="stack">' + sections + '</div>';
     }
     booksView = function () { return heading('Reading programme', 'One book. A new beginning.', 'Complete each level to unlock the next one.') + readingLevels(false) };
     adminReading = function () { return heading('Administrator · Reading programme', 'Curate all seven levels.', 'Every level is available for editing.') + readingLevels(true) };
     app.addEventListener('submit', e => { const form = e.target; if (!['book-admin', 'book-edit', 'review'].includes(form.dataset.form)) return; e.preventDefault(); e.stopImmediatePropagation(); const data = new FormData(form); if (form.dataset.form === 'review') { const link = String(data.get('review') || '').trim(); if (!link) { toast('Add your book review link. Your form is still here.'); return } state.submissions.reviews = state.submissions.reviews || {}; state.submissions.reviews[form.dataset.book] = { review: link }; if (!persist()) return; toast('Book review submitted. The book is complete.'); location.hash = 'reading'; render(); return } const title = String(data.get('title') || '').trim(); if (!title) { toast('Enter a book title. Your form is still here.'); return } const details = { title, author: String(data.get('author') || '').trim(), level: Math.max(1, Math.min(7, Number(data.get('level')) || 1)) }; if (form.dataset.form === 'book-admin') state.books.push({ id: 'book-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7), ...details }); else { const book = state.books.find(b => b.id === form.dataset.id); if (!book) { toast('Book could not be found.'); return } Object.assign(book, details) } if (!persist()) return; toast(form.dataset.form === 'book-edit' ? 'Book updated.' : 'Book added.'); render() }, true);
-    app.addEventListener('click', e => { const unenrol = e.target.closest('[data-unenrol]'); if (unenrol) { delete state.courses[unenrol.dataset.unenrol]; persist(); render(); toast('You have unenrolled from this course.') } const edit = e.target.closest('[data-edit-reading-book]'); if (edit) { const book = state.books.find(b => b.id === edit.dataset.editReadingBook); if (!book) return; const host = edit.closest('[data-book-row]'); host.outerHTML = '<section class="panel admin-panel"><form data-form="book-edit" data-id="' + book.id + '" class="form-grid"><input type="hidden" name="level" value="' + Number(book.level) + '"><div class="field"><label>Title</label><input name="title" value="' + esc(book.title) + '" required></div><div class="field"><label>Author</label><input name="author" value="' + esc(book.author) + '"></div><div class="full"><button class="btn outline">Save</button> <button class="btn outline" type="button" data-cancel-reading-book>Cancel</button></div></form></section>' } const cancelBook = e.target.closest('[data-cancel-reading-book]'); if (cancelBook) render(); });
+    app.addEventListener('click', e => { const unenrol = e.target.closest('[data-unenrol]'); if (unenrol) { delete state.courses[unenrol.dataset.unenrol]; persist(); render(); toast('You have unenrolled from this course.') } const edit = e.target.closest('[data-edit-reading-book]'); if (edit) { const book = state.books.find(b => b.id === edit.dataset.editReadingBook); if (!book) return; const host = edit.closest('[data-book-row]'); host.outerHTML = '<section class="panel admin-panel"><form data-form="book-edit" data-id="' + esc(book.id) + '" class="form-grid"><div class="field"><label>Title</label><input name="title" value="' + esc(book.title) + '" required></div><div class="field"><label>Author</label><input name="author" value="' + esc(book.author) + '"></div><div class="field"><label>Reading level</label><select name="level">' + readingLevelOptions(book.level) + '</select></div><div class="full"><button class="btn outline">Save</button> <button class="btn outline" type="button" data-cancel-reading-book>Cancel</button></div></form></section>' } const cancelBook = e.target.closest('[data-cancel-reading-book]'); if (cancelBook) render(); });
     const coursePageWithUnenrol = coursePage; coursePage = function (id) { let html = coursePageWithUnenrol(id); const c = courses.find(x => x.id === id); if (c && state.courses[c.id]) html = html.replace('</aside>', '<button style="width:100%;margin-top:12px" class="btn outline" data-unenrol="' + c.id + '">Unenroll</button></aside>'); return html };
     const baseStats = stats; stats = function () { const reviews = Object.keys(state.submissions.reviews || {}).length; return '<div class="stats"><div class="stat"><small>Credits earned</small><strong>' + credits() + '</strong><span>From completed courses</span></div><div class="stat"><small>Books completed</small><strong><button class="stat-link" data-show-reviews>' + reviews + '</button></strong><span>Your reading journey</span></div><div class="stat"><small>Research papers</small><strong><button class="stat-link" data-show-research>' + state.research.length + '</button></strong><span>Ideas worth exploring</span></div><div class="stat"><small>Club memberships</small><strong>' + state.clubs.length + '</strong><span>Find your people</span></div></div>' };
     app.addEventListener('click', e => { if (e.target.closest('[data-show-reviews]')) { const rows = Object.entries(state.submissions.reviews || {}).map(([id, r]) => { const b = state.books.find(x => x.id === id); return b ? '<section class="panel"><h3>' + esc(b.title) + '</h3><p class="sub">' + esc(b.author) + '</p><p><a href="' + esc(r.review) + '" target="_blank" rel="noreferrer">Review link ↗</a></p></section>' : '' }).join('') || '<p class="sub">No completed book reviews yet.</p>'; document.querySelector('.content').innerHTML = heading('My profile', 'Completed book reviews', 'Your submitted reading reflections.') + rows } if (e.target.closest('[data-show-research]')) { const rows = state.research.map(r => '<section class="panel"><h3>' + esc(r.title) + '</h3><p>' + esc(r.abstract) + '</p><p><a href="' + esc(r.link) + '" target="_blank" rel="noreferrer">Research link ↗</a></p></section>').join('') || '<p class="sub">No independent research submissions yet.</p>'; document.querySelector('.content').innerHTML = heading('My profile', 'Independent research', 'Your submitted research.') + rows } });
@@ -3387,7 +3478,7 @@
       const books = rows.books.map(row => {
         const level = levels.find(item => item.id === row.reading_level_id);
         if (!level) throw new Error('Book ' + row.id + ' refers to an unavailable reading level.');
-        return { id: row.id, title: row.title, author: row.author || '', level: Number(level.level_number), readingLevelId: level.id };
+        return { id: row.id, title: row.title, author: row.author || '', level: Number(level.level_number), readingLevelId: level.id, recommended: row.recommended === true };
       });
       const rubrics = {};
       rows.rubrics.filter(row => row.active).forEach(row => {
@@ -3693,6 +3784,42 @@
         controls.forEach((item, index) => item.disabled = disabled[index]);
       }
     }
+    function updateBookRecommendationControl(button, recommended) {
+      button.textContent = recommended ? '★' : '☆';
+      button.setAttribute('aria-pressed', String(recommended));
+      button.setAttribute('aria-label', (recommended ? 'Remove ' : 'Mark ') + (button.closest('[data-book-row]')?.querySelector('.catalog-row-title')?.textContent || 'book') + (recommended ? ' from recommendations' : ' as recommended'));
+      button.title = recommended ? 'Recommended — click to remove' : 'Mark as recommended';
+    }
+    window.addEventListener('click', event => {
+      const button = event.target.closest('[data-toggle-book-recommended]');
+      if (!button) return;
+      event.preventDefault(); event.stopImmediatePropagation();
+      if (catalogue.writing) { toast('A catalogue save is already in progress.'); return }
+      try { requireCatalogueAdmin() } catch (error) { toast(error.message); return }
+      const book = state.books.find(item => String(item.id) === String(button.dataset.toggleBookRecommended));
+      if (!book) { toast('The book is no longer available.'); return }
+      const previous = book.recommended === true, next = !previous;
+      book.recommended = next;
+      updateBookRecommendationControl(button, next);
+      button.disabled = true;
+      button.setAttribute('aria-busy', 'true');
+      catalogue.writing = true;
+      void (async () => {
+        try {
+          await saveCatalogueRow('books', book.id, { recommended: next });
+          await loadGlobalCatalogue(true);
+          toast(next ? 'Book marked as recommended.' : 'Book removed from recommendations.');
+        } catch (error) {
+          console.error('[Catalogue] Book recommendation save failed:', error);
+          book.recommended = previous;
+          try { await loadGlobalCatalogue(true) } catch (reloadError) { console.error('[Catalogue] Reload after recommendation failure failed:', reloadError) }
+          toast('Recommendation could not be saved: ' + (error.message || 'please try again.'));
+        } finally {
+          catalogue.writing = false;
+          render();
+        }
+      })();
+    }, true);
     function clearCourseValidation(form) {
       form.querySelectorAll('.validation-error').forEach(node => node.classList.remove('validation-error'));
       form.querySelectorAll('.field-error,.section-error').forEach(node => node.remove());
