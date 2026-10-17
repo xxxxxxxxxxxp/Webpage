@@ -1551,6 +1551,7 @@
     }
 
     .btn[data-delete-school],
+    .btn[data-delete-school-resource],
     .btn[data-delete-club],
     .btn[data-delete-course],
     .btn[data-delete-book],
@@ -1672,6 +1673,42 @@
       background: linear-gradient(135deg, #fbfffd, var(--success-soft))
     }
 
+    .book-list {
+      gap: 7px
+    }
+
+    .catalog-row.book-card[data-book-row] {
+      flex-direction: row;
+      align-items: center;
+      gap: 12px;
+      min-height: 0;
+      padding: 9px 12px
+    }
+
+    .catalog-row.book-card[data-book-row] .catalog-row-title {
+      margin-bottom: 2px;
+      font-size: 16px;
+      line-height: 1.25
+    }
+
+    .catalog-row.book-card[data-book-row] .catalog-row-meta {
+      gap: 3px 8px;
+      margin-top: 0;
+      font-size: 11px;
+      line-height: 1.3
+    }
+
+    .catalog-row.book-card[data-book-row] .catalog-row-actions {
+      gap: 5px
+    }
+
+    .catalog-row.book-card[data-book-row] .catalog-row-actions .btn {
+      min-height: 32px;
+      padding: 6px 9px;
+      border-radius: 9px;
+      font-size: 11px
+    }
+
     .course-row-code {
       display: block;
       margin-bottom: 5px;
@@ -1691,6 +1728,45 @@
       overflow: hidden;
       -webkit-box-orient: vertical;
       -webkit-line-clamp: 2
+    }
+
+    .school-resources-section {
+      min-width: 0;
+      margin-top: 34px
+    }
+
+    .school-resource-form {
+      min-width: 0;
+      max-width: 100%;
+      margin-bottom: 14px;
+      padding: 18px
+    }
+
+    .school-resource-form .section-head {
+      margin: 0 0 14px
+    }
+
+    .school-resource-form-actions {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px
+    }
+
+    .school-resource-row .catalog-row-description {
+      margin-bottom: 0
+    }
+
+    .school-resource-url {
+      color: var(--secondary);
+      text-decoration: underline;
+      text-underline-offset: 3px;
+      overflow-wrap: anywhere;
+      word-break: break-word
+    }
+
+    .school-resource-empty {
+      margin: 0
     }
 
     .grade-summary,
@@ -1977,6 +2053,10 @@
       .catalog-row-actions {
         width: 100%;
         justify-content: flex-start
+      }
+
+      .school-resource-form {
+        padding: 15px
       }
 
       .linked-course-option {
@@ -2421,6 +2501,23 @@
         flex: 1 1 120px
       }
 
+      .catalog-row.book-card[data-book-row] {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+        padding: 10px 11px
+      }
+
+      .catalog-row.book-card[data-book-row] .catalog-row-actions {
+        width: 100%;
+        justify-content: flex-start
+      }
+
+      .catalog-row.book-card[data-book-row] .catalog-row-actions .btn {
+        flex: 0 1 auto;
+        width: auto
+      }
+
       .section-head {
         align-items: flex-start
       }
@@ -2705,7 +2802,42 @@
     function esc(value) { return String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])) }
     const structuredCoursePage = coursePage; coursePage = function (id) { const c = courses.find(course => course.id === id); if (!c) return structuredCoursePage(id); let page = structuredCoursePage(id); c.syllabus.forEach((entry, index) => { const marker = '<label for="week-' + index + '">' + entry.title + '</label>'; const resource = entry.resourceLink ? '<p class="syllabus-resource"><a href="' + esc(entry.resourceLink) + '" target="_blank" rel="noreferrer">Open weekly resource ↗</a></p>' : ''; page = page.replace(marker, marker + resource) }); const resources = c.additionalResources || []; const resourcePanel = resources.length ? '<section class="panel additional-resources"><div class="eyebrow">Additional useful resources</div>' + resources.map(resource => '<p><a href="' + esc(resource.link) + '" target="_blank" rel="noreferrer">' + esc(resource.title) + ' ↗</a></p>').join('') + '</section>' : ''; return page.replace('<div class="detail">', resourcePanel + '<div class="detail">') };
     function saveRecords() { persist(); render() }
-    function schoolDetail(id) { const school = schools.find(s => s.id === id); if (!school) return heading('Not found', 'School not found.', 'Return to Schools & courses.'); const schoolCourses = coursesForSchool(id); return '<a class="back" href="#schools">← Back to schools & courses</a>' + heading(school.name, school.name, 'Courses and ideas from this school.') + '<div class="catalog-list">' + (schoolCourses.length ? schoolCourses.map(course => courseCatalogueRow(course)).join('') : '<div class="panel"><h3>Courses coming soon.</h3><p class="sub">Your administrator has not added a course to this school yet.</p></div>') + '</div>' }
+    function orderedSchoolResources(school) {
+      return (Array.isArray(school?.additionalResources) ? school.additionalResources : []).slice()
+        .sort((a, b) => String(a.title || '').localeCompare(String(b.title || ''), undefined, { sensitivity: 'base' }));
+    }
+    function schoolResourceEditor(schoolId) {
+      return '<form class="panel admin-panel school-resource-form" data-form="school-resource" data-school-id="' + esc(schoolId) + '" hidden novalidate>' +
+        '<div class="section-head"><div><div class="eyebrow" data-school-resource-form-mode>Add resource</div><h3 data-school-resource-form-title>New School resource</h3></div></div>' +
+        '<div class="form-grid"><div class="field"><label>Title</label><input name="title" required></div>' +
+        '<div class="field"><label>URL <span class="sub">(optional)</span></label><input name="url" type="url" inputmode="url" placeholder="https://"></div>' +
+        '<div class="field full"><label>Description <span class="sub">(optional)</span></label><textarea name="description" placeholder="What makes this resource useful?"></textarea></div>' +
+        '<div class="full school-resource-form-actions"><button class="btn" type="submit" data-school-resource-submit>Save resource</button><button class="btn outline" type="button" data-cancel-school-resource>Cancel</button></div></div></form>';
+    }
+    function schoolResourcesSection(school, admin) {
+      const resources = orderedSchoolResources(school);
+      if (!admin && !resources.length) return '';
+      const rows = resources.map(resource => {
+        const url = String(resource.url || '').trim(), visibleUrl = url.replace(/^https?:\/\//i, '');
+        const meta = url ? '<a class="school-resource-url" href="' + esc(url) + '" target="_blank" rel="noreferrer">' + esc(visibleUrl) + ' ↗</a>' : '<span>No link provided</span>';
+        return '<article class="catalog-row school-resource-row"><div class="catalog-row-main"><h3 class="catalog-row-title">' + esc(resource.title) + '</h3>' +
+          (resource.description ? '<p class="catalog-row-description">' + esc(resource.description) + '</p>' : '') + '<div class="catalog-row-meta">' + meta + '</div></div>' +
+          (admin ? '<div class="catalog-row-actions"><button class="btn outline" type="button" data-edit-school-resource="' + esc(resource.id) + '" data-school-id="' + esc(school.id) + '">Edit</button><button class="btn outline" type="button" data-delete-school-resource="' + esc(resource.id) + '" data-school-id="' + esc(school.id) + '">Delete</button></div>' : '') + '</article>';
+      }).join('');
+      return '<section class="school-resources-section"><div class="section-head"><div><h2>Additional Resources</h2><p class="sub">Useful material for the whole School, separate from individual Courses.</p></div>' +
+        (admin ? '<button class="btn outline" type="button" data-add-school-resource="' + esc(school.id) + '">+ Add Resource</button>' : '') + '</div>' +
+        (admin ? schoolResourceEditor(school.id) : '') +
+        (rows ? '<div class="catalog-list">' + rows + '</div>' : '<p class="notice school-resource-empty"><strong>No additional resources yet.</strong><br>Add useful material that does not belong to a specific course.</p>') + '</section>';
+    }
+    function schoolDetailPage(id, admin) {
+      const school = schools.find(item => String(item.id) === String(id));
+      if (!school) return heading('Not found', 'School not found.', 'Return to Schools & courses.');
+      const schoolCourses = coursesForSchool(id), courseRows = schoolCourses.length ? schoolCourses.map(course => courseCatalogueRow(course, admin)).join('') : '<div class="panel"><h3>Courses coming soon.</h3><p class="sub">Your administrator has not added a course to this school yet.</p></div>';
+      const actions = admin ? '<div class="admin-actions"><a class="btn outline" href="#admin-school-edit/' + esc(id) + '">Edit school</a><a class="btn outline" href="#admin-course-new/' + esc(id) + '">+ Add course</a></div>' : '';
+      return '<a class="back" href="#schools">← Back to schools & courses</a>' + heading(school.name, school.name, 'Courses and ideas from this school.') + actions +
+        '<div class="section-head"><h2>Courses</h2><span class="sub">' + schoolCourses.length + ' course' + (schoolCourses.length === 1 ? '' : 's') + '</span></div><div class="catalog-list">' + courseRows + '</div>' + schoolResourcesSection(school, admin);
+    }
+    function schoolDetail(id) { return schoolDetailPage(id, false) }
     function schoolList() { return heading('Schools & courses', 'Follow your curiosity.', 'Nine schools. Different perspectives. A shared love of learning.') + '<div class="grid">' + schools.map(s => '<article class="card"><div class="card-body"><div class="eyebrow">' + coursesForSchool(s.id).length + ' course' + (coursesForSchool(s.id).length === 1 ? '' : 's') + ' · open enrolment</div><h3>' + esc(s.name) + '</h3><p>' + esc(s.description) + '</p><a class="btn outline" href="#school/' + s.id + '">Explore school →</a></div></article>').join('') + '</div>' }
     function attendanceDays(club) { const selected = state.attendanceDays[club.id] || []; return ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(day => '<label><input type="checkbox" data-attendance-day="' + club.id + '" value="' + day + '" ' + (selected.includes(day) ? 'checked' : '') + '> ' + day + '</label>').join('') }
     function clubDetail(id) { const club = clubs.find(c => c.id === id); if (!club) return heading('Not found', 'Club not found.', 'Return to Clubs & societies.'); const joined = state.clubs.includes(id), records = state.attendance[id] || {}, dates = Array.from({ length: 7 }, (_, i) => { const date = new Date(); date.setDate(date.getDate() - i); return date.toISOString().slice(0, 10) }); return '<a class="back" href="#clubs">← Back to clubs & societies</a>' + heading('Clubs & societies', club.name, club.description) + '<section class="detail"><section class="panel"><div class="eyebrow">Club details</div><div class="aside-row"><span>Frequency</span><strong>' + club.frequency + ' times per week</strong></div><div class="aside-row"><span>Connected courses</span><strong>' + courses.filter(c => c.club === club.id).length + '</strong></div>' + (joined ? '<div class="submission"><h2>Choose your attendance days</h2><p class="sub">Select up to ' + club.frequency + ' days each week.</p><div class="attendance-days">' + attendanceDays(club) + '</div><h2>My attendance</h2><div class="attendance-history">' + dates.map(date => '<div class="aside-row"><span>' + new Date(date + 'T12:00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) + '</span><button class="btn ' + (records[date] ? 'outline' : '') + '" data-attend="' + club.id + '|' + date + '">' + (records[date] ? 'Attended ✓' : 'Mark attended') + '</button></div>').join('') + '</div></div>' : '<p class="notice">Join this club to choose attendance days and record sessions.</p>') + '</section><aside><div class="panel"><div class="eyebrow">Your membership</div><button class="btn ' + (joined ? 'outline' : '') + '" data-club="' + club.id + '">' + (joined ? 'Leave club' : 'Join club') + '</button></div></aside></section>' }
@@ -2730,7 +2862,7 @@
     function withoutEntitySymbol(html) { return html.replace(/<b aria-hidden="true">[\s\S]*?<\/b>/, '') }
     function adminCourseCards() { return '<div class="catalog-list">' + courses.slice().sort(courseCodeSort).map(course => courseCatalogueRow(course, true)).join('') + '</div>' }
     const studentCourseCard = courseCard; courseCard = function (c) { const card = studentCourseCard(c); return state.role === 'admin' ? withoutEntitySymbol(card).replace('</article>', '<div class="admin-actions"><a class="btn outline" href="#admin-course-edit/' + c.id + '">Edit</a></div></article>') : card };
-    function adminSchoolView(id) { return schoolDetail(id).replace('<div class="catalog-list">', '<div class="admin-actions"><a class="btn outline" href="#admin-school-edit/' + id + '">Edit school</a><a class="btn outline" href="#admin-course-new/' + id + '">+ Add course</a></div><div class="catalog-list">') }
+    function adminSchoolView(id) { return schoolDetailPage(id, true) }
     function adminCatalogue() { return heading('Administrator · Schools & courses', 'Shape the learning journey.', 'Choose a school to view and manage its courses.') + '<div class="section-head"><h2>Schools</h2><a class="btn" href="#admin-school-new">+ Add School</a></div>' + adminSchoolCards() }
     const oldPlaceholder = placeholder; schoolPage = () => state.role === 'admin' ? adminCatalogue() : schoolList(); clubPage = () => state.role === 'admin' ? adminClubs() : clubsView(); placeholder = type => type === 'reading' ? (state.role === 'admin' ? adminReading() : booksView()) : oldPlaceholder(type);
     const routedRender = render; render = function () { if (state.role !== 'admin' && location.hash.slice(1).split('/')[0] === 'admin') { location.hash = 'home'; return } routedRender() };
@@ -2785,15 +2917,15 @@
     /* Focused fixes for course enrolment and the reading programme. */
     function readingLevels(admin) {
       if (!readingLevelsData.length) return '<section class="panel"><p class="sub">No reading levels have been configured in Supabase.</p></section>';
-      const bookRow = (book, unlocked) => { const done = !!state.submissions.reviews?.[book.id]; return '<article class="catalog-row book-card ' + (done ? 'completed-book' : '') + '" data-book-row><div class="catalog-row-main"><h3 class="catalog-row-title">' + esc(book.title) + '</h3><div class="catalog-row-meta"><span>' + esc(book.author || 'Author not listed') + '</span><span>Level ' + Number(book.level) + '</span>' + (done ? '<span>Completed ✓</span>' : '') + '</div></div><div class="catalog-row-actions">' + (admin ? '<button class="btn outline" type="button" data-edit-reading-book="' + book.id + '">Edit</button> <button class="btn outline" type="button" data-delete-book="' + book.id + '">Delete</button>' : (unlocked ? '<a class="btn outline" href="#book/' + book.id + '">' + (done ? 'View review' : 'Write review') + ' →</a>' : '<span class="sub">Locked</span>')) + '</div></article>' };
+      const bookRow = (book, unlocked) => { const done = !!state.submissions.reviews?.[book.id]; return '<article class="catalog-row book-card ' + (done ? 'completed-book' : '') + '" data-book-row><div class="catalog-row-main"><h3 class="catalog-row-title">' + esc(book.title) + '</h3><div class="catalog-row-meta"><span>' + esc(book.author || 'Author not listed') + ' · Level ' + Number(book.level) + '</span>' + (done ? '<span>Completed ✓</span>' : '') + '</div></div><div class="catalog-row-actions">' + (admin ? '<button class="btn outline" type="button" data-edit-reading-book="' + book.id + '">Edit</button> <button class="btn outline" type="button" data-delete-book="' + book.id + '">Delete</button>' : (unlocked ? '<a class="btn outline" href="#book/' + book.id + '">' + (done ? 'View review' : 'Write review') + ' →</a>' : '<span class="sub">Locked</span>')) + '</div></article>' };
       const orderedBooks = state.books.slice().sort(alphabeticallyBy('title'));
       if (admin) {
         const rows = orderedBooks.map(book => bookRow(book, true)).join('');
         const levelOptions = readingLevelsData.map(level => '<option value="' + Number(level.level_number) + '">Level ' + Number(level.level_number) + '</option>').join('');
-        return '<section class="panel"><div class="section-head" style="margin-top:0"><h2>Books</h2><span class="pill">' + orderedBooks.length + ' title' + (orderedBooks.length === 1 ? '' : 's') + '</span></div>' + (rows ? '<div class="catalog-list">' + rows + '</div>' : '<p class="sub">No books have been added yet.</p>') + '<div class="section-head"><h3>Add book</h3></div><form data-form="book-admin" class="form-grid"><div class="field"><label>Title</label><input name="title" required></div><div class="field"><label>Author</label><input name="author"></div><div class="field"><label>Reading level</label><select name="level">' + levelOptions + '</select></div><div class="full"><button class="btn outline">+ Add book</button></div></form></section>';
+        return '<section class="panel"><div class="section-head" style="margin-top:0"><h2>Books</h2><span class="pill">' + orderedBooks.length + ' title' + (orderedBooks.length === 1 ? '' : 's') + '</span></div>' + (rows ? '<div class="catalog-list book-list">' + rows + '</div>' : '<p class="sub">No books have been added yet.</p>') + '<div class="section-head"><h3>Add book</h3></div><form data-form="book-admin" class="form-grid"><div class="field"><label>Title</label><input name="title" required></div><div class="field"><label>Author</label><input name="author"></div><div class="field"><label>Reading level</label><select name="level">' + levelOptions + '</select></div><div class="full"><button class="btn outline">+ Add book</button></div></form></section>';
       }
       const grouped = readingLevelsData.map(level => orderedBooks.filter(book => Number(book.level) === Number(level.level_number)));
-      return '<div class="stack">' + grouped.map((books, i) => { const unlocked = i === 0 || (grouped[i - 1].length > 0 && grouped[i - 1].every(book => state.submissions.reviews?.[book.id])); const rows = books.map(book => bookRow(book, unlocked)).join(''); return '<section class="panel ' + (!unlocked ? 'locked' : '') + '"><div class="section-head" style="margin-top:0"><h2>Level ' + Number(readingLevelsData[i].level_number) + '</h2><span class="pill">' + (unlocked ? 'Unlocked' : 'Locked') + '</span></div>' + (rows ? '<div class="catalog-list">' + rows + '</div>' : '<p class="sub">No books in this level yet.</p>') + '</section>' }).join('') + '</div>';
+      return '<div class="stack">' + grouped.map((books, i) => { const unlocked = i === 0 || (grouped[i - 1].length > 0 && grouped[i - 1].every(book => state.submissions.reviews?.[book.id])); const rows = books.map(book => bookRow(book, unlocked)).join(''); return '<section class="panel ' + (!unlocked ? 'locked' : '') + '"><div class="section-head" style="margin-top:0"><h2>Level ' + Number(readingLevelsData[i].level_number) + '</h2><span class="pill">' + (unlocked ? 'Unlocked' : 'Locked') + '</span></div>' + (rows ? '<div class="catalog-list book-list">' + rows + '</div>' : '<p class="sub">No books in this level yet.</p>') + '</section>' }).join('') + '</div>';
     }
     booksView = function () { return heading('Reading programme', 'One book. A new beginning.', 'Complete each level to unlock the next one.') + readingLevels(false) };
     adminReading = function () { return heading('Administrator · Reading programme', 'Curate all seven levels.', 'Every level is available for editing.') + readingLevels(true) };
@@ -3194,8 +3326,8 @@
 
     /* Stage 1: shared catalogue lives in Supabase; learner records remain local. */
     const catalogue = { userId: null, ready: false, pending: null, error: null, rows: {}, writing: false };
-    const catalogueTables = ['schools', 'courses', 'course_syllabus_sections', 'course_resources', 'clubs', 'club_commitment_definitions', 'reading_levels', 'books', 'rubrics', 'rubric_aspects', 'graduation_requirements'];
-    const catalogueForms = new Set(['school-admin', 'school-admin-create', 'school-edit', 'course', 'course-admin', 'course-admin-create', 'course-edit-admin', 'course-structured', 'syllabus', 'club-admin-create', 'club-edit', 'club-commitments-admin', 'book', 'book-admin', 'book-edit', 'graduation']);
+    const catalogueTables = ['schools', 'school_resources', 'courses', 'course_syllabus_sections', 'course_resources', 'clubs', 'club_commitment_definitions', 'reading_levels', 'books', 'rubrics', 'rubric_aspects', 'graduation_requirements'];
+    const catalogueForms = new Set(['school-admin', 'school-admin-create', 'school-edit', 'school-resource', 'course', 'course-admin', 'course-admin-create', 'course-edit-admin', 'course-structured', 'syllabus', 'club-admin-create', 'club-edit', 'club-commitments-admin', 'book', 'book-admin', 'book-edit', 'graduation']);
     const frequencyLabels = { weekly: 'Weekly', monthly: 'Monthly', term: 'Term', semester: 'Semester' };
     let readingLevelsData = [];
     function catalogueFailure(context, error) {
@@ -3220,7 +3352,13 @@
     }
     function adaptCatalogue(rows) {
       const bySequence = items => items.slice().sort((a, b) => Number(a.sequence_number) - Number(b.sequence_number));
-      const newSchools = rows.schools.map(row => ({ ...row, description: row.description || '', symbol: row.symbol || '', color: row.color || '' }));
+      const newSchools = rows.schools.map(row => ({
+        ...row, description: row.description || '', symbol: row.symbol || '', color: row.color || '',
+        additionalResources: rows.school_resources.filter(resource => resource.school_id === row.id).map(resource => ({
+          id: resource.id, schoolId: resource.school_id, title: resource.title || '', description: resource.description || '',
+          url: resource.url || '', sortOrder: Number(resource.sort_order) || 0
+        })).sort((a, b) => String(a.title).localeCompare(String(b.title), undefined, { sensitivity: 'base' }))
+      }));
       const newClubs = rows.clubs.map(row => ({
         ...row, description: row.description || '', symbol: row.symbol || '', color: row.color || '',
         frequency: Number(row.meetings_per_week),
@@ -3332,7 +3470,7 @@
         return;
       }
       renderBeforeCatalogue();
-      const empty = catalogueTables.filter(table => !catalogue.rows[table]?.length);
+      const empty = catalogueTables.filter(table => table !== 'school_resources' && !catalogue.rows[table]?.length);
       if (empty.length) app.insertAdjacentHTML('afterbegin', '<p class="notice"><strong>Shared catalogue:</strong> No records returned for ' + esc(empty.join(', ')) + '. No local defaults were inserted.</p>');
       const orphaned = Object.keys(state.courses).some(id => !courses.some(course => course.id === id)) ||
         state.clubs.some(id => !clubs.some(club => club.id === id)) ||
@@ -3492,6 +3630,19 @@
           symbol: old?.symbol || '', color: old?.color || '' });
         form.dataset.id = row.id; return 'schools';
       }
+      if (kind === 'school-resource') {
+        const schoolId = String(form.dataset.schoolId || ''), title = String(data.get('title') || '').trim(), url = String(data.get('url') || '').trim(),
+          description = String(data.get('description') || '').trim(), existing = form.dataset.id ? catalogue.rows.school_resources.find(resource => String(resource.id) === String(form.dataset.id)) : null;
+        if (!schools.some(school => String(school.id) === schoolId)) throw new Error('The School is no longer available.');
+        if (!title) throw new Error('Enter a resource title.');
+        if (url && !isWebUrl(url)) throw new Error('Enter a complete http:// or https:// URL, or leave the URL blank.');
+        if (form.dataset.id && (!existing || String(existing.school_id) !== schoolId)) throw new Error('The School resource is no longer available. Reload before editing.');
+        const siblings = catalogue.rows.school_resources.filter(resource => String(resource.school_id) === schoolId);
+        const sortOrder = existing ? Number(existing.sort_order) || 0 : siblings.reduce((highest, resource) => Math.max(highest, Number(resource.sort_order) || 0), -1) + 1;
+        const row = await saveCatalogueRow('school_resources', existing?.id || null, { school_id: schoolId, title, description, url, sort_order: sortOrder });
+        form.dataset.id = row.id;
+        return 'school/' + encodeURIComponent(schoolId);
+      }
       if (kind === 'course-structured') return saveCatalogueCourse(form, editorDraft);
       if (['club-admin-create', 'club-edit', 'club-commitments-admin'].includes(kind)) return saveCatalogueClub(form, editorDraft);
       if (['book', 'book-admin', 'book-edit'].includes(kind)) {
@@ -3595,18 +3746,43 @@
     };
     window.addEventListener('input', captureEditorDraft, true);
     window.addEventListener('change', captureEditorDraft, true);
+    window.addEventListener('click', event => {
+      const add = event.target.closest('[data-add-school-resource]'), edit = event.target.closest('[data-edit-school-resource]'), cancel = event.target.closest('[data-cancel-school-resource]');
+      if (!add && !edit && !cancel) return;
+      event.preventDefault(); event.stopImmediatePropagation();
+      const schoolId = String(add?.dataset.addSchoolResource || edit?.dataset.schoolId || cancel?.closest('form')?.dataset.schoolId || '');
+      const form = app.querySelector('form[data-form="school-resource"][data-school-id="' + schoolId + '"]');
+      if (!form) return;
+      if (cancel) { form.reset(); form.dataset.id = ''; form.hidden = true; return }
+      form.reset(); form.dataset.id = '';
+      let resource = null;
+      if (edit) {
+        resource = catalogue.rows.school_resources.find(item => String(item.id) === String(edit.dataset.editSchoolResource) && String(item.school_id) === schoolId);
+        if (!resource) { toast('The School resource is no longer available. Reload and try again.'); return }
+        form.dataset.id = resource.id;
+        form.elements.title.value = resource.title || '';
+        form.elements.url.value = resource.url || '';
+        form.elements.description.value = resource.description || '';
+      }
+      form.querySelector('[data-school-resource-form-mode]').textContent = resource ? 'Edit resource' : 'Add resource';
+      form.querySelector('[data-school-resource-form-title]').textContent = resource ? resource.title : 'New School resource';
+      form.querySelector('[data-school-resource-submit]').textContent = resource ? 'Save changes' : 'Save resource';
+      form.hidden = false;
+      form.elements.title.focus({ preventScroll: true });
+      form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, true);
     window.addEventListener('click', e => {
       const retry = e.target.closest('[data-retry-catalogue]');
       if (retry) { e.preventDefault(); e.stopImmediatePropagation(); catalogue.error = null; render(); return }
-      const button = e.target.closest('[data-delete-school],[data-delete-club],[data-delete-course],[data-delete-book]');
+      const button = e.target.closest('[data-delete-school],[data-delete-school-resource],[data-delete-club],[data-delete-course],[data-delete-book]');
       if (!button) return;
       e.preventDefault(); e.stopImmediatePropagation();
       void runCatalogueWrite(button, async () => {
         if (!confirm('Delete this shared catalogue record? This affects every browser. Local student records will be retained.')) return false;
-        const table = button.dataset.deleteSchool ? 'schools' : button.dataset.deleteClub ? 'clubs' : button.dataset.deleteCourse ? 'courses' : 'books';
-        const id = button.dataset.deleteSchool || button.dataset.deleteClub || button.dataset.deleteCourse || button.dataset.deleteBook;
+        const table = button.dataset.deleteSchool ? 'schools' : button.dataset.deleteSchoolResource ? 'school_resources' : button.dataset.deleteClub ? 'clubs' : button.dataset.deleteCourse ? 'courses' : 'books';
+        const id = button.dataset.deleteSchool || button.dataset.deleteSchoolResource || button.dataset.deleteClub || button.dataset.deleteCourse || button.dataset.deleteBook;
         await deleteCatalogueRow(table, id);
-        return table === 'schools' || table === 'courses' ? 'schools' : table === 'clubs' ? 'clubs' : 'reading';
+        return table === 'school_resources' ? 'school/' + encodeURIComponent(String(button.dataset.schoolId)) : table === 'schools' || table === 'courses' ? 'schools' : table === 'clubs' ? 'clubs' : 'reading';
       });
     }, true);
     function rubricMaximum(definition, index) { return Number(definition.maximumMarks[index]) }
