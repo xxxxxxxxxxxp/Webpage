@@ -2716,6 +2716,339 @@
         width: 100%
       }
     }
+
+    /* Student calendar and to-dos deliberately reuse the existing soft catalogue palette. */
+    .calendar-controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 16px
+    }
+
+    .calendar-controls .calendar-week-label {
+      flex: 1 1 190px;
+      text-align: center;
+      color: var(--secondary);
+      font-size: 12px;
+      font-weight: 750
+    }
+
+    .calendar-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(280px, .9fr);
+      gap: 18px;
+      align-items: start
+    }
+
+    .week-calendar,
+    .calendar-agenda,
+    .calendar-todo-form {
+      min-width: 0
+    }
+
+    .week-calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      border: 1px solid #e4d9ee;
+      border-radius: 16px;
+      overflow: hidden;
+      background: #fffdfd
+    }
+
+    .calendar-day {
+      display: flex;
+      min-width: 0;
+      min-height: 154px;
+      flex-direction: column;
+      gap: 8px;
+      padding: 10px 8px;
+      border-right: 1px solid #eee5f2;
+      background: linear-gradient(180deg, #fffefe, #fcf9ff)
+    }
+
+    .calendar-day:last-child {
+      border-right: 0
+    }
+
+    .calendar-day.is-today {
+      background: linear-gradient(180deg, #f7efff, #fffafe)
+    }
+
+    .calendar-day-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 5px;
+      color: #796783;
+      font-size: 10px;
+      font-weight: 750;
+      letter-spacing: .65px;
+      text-transform: uppercase
+    }
+
+    .calendar-day-heading time {
+      display: grid;
+      width: 25px;
+      height: 25px;
+      flex: 0 0 auto;
+      place-items: center;
+      border-radius: 50%;
+      color: #634a75;
+      font-size: 12px;
+      letter-spacing: 0
+    }
+
+    .is-today .calendar-day-heading time {
+      background: var(--secondary-soft);
+      color: #68468f
+    }
+
+    .calendar-day-items,
+    .calendar-agenda-list,
+    .calendar-weekly-list {
+      display: grid;
+      gap: 7px
+    }
+
+    .calendar-event {
+      display: block;
+      min-width: 0;
+      padding: 7px;
+      border: 1px solid #e4d8ef;
+      border-radius: 10px;
+      background: #f9f2ff;
+      color: #594666;
+      font-size: 11px;
+      line-height: 1.32;
+      text-decoration: none
+    }
+
+    .calendar-event:hover {
+      border-color: #cdb7df;
+      background: #f4ebfc
+    }
+
+    .calendar-event.task {
+      background: #fff4fa;
+      border-color: #f1d5e4
+    }
+
+    .calendar-event.commitment {
+      background: #eff8ff;
+      border-color: #d1e6f7
+    }
+
+    .calendar-event strong,
+    .calendar-event small {
+      display: block;
+      overflow-wrap: anywhere
+    }
+
+    .calendar-event small {
+      margin-top: 3px;
+      color: #816f8a
+    }
+
+    .calendar-empty {
+      color: #a091a5;
+      font-size: 11px;
+      line-height: 1.35
+    }
+
+    .calendar-section-title {
+      margin: 18px 0 8px;
+      color: #755d83;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      text-transform: uppercase
+    }
+
+    .calendar-agenda .calendar-section-title:first-child {
+      margin-top: 0
+    }
+
+    .calendar-task-card {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      gap: 9px;
+      align-items: start;
+      padding: 10px;
+      border: 1px solid #e7dbea;
+      border-radius: 13px;
+      background: #fffdfd
+    }
+
+    .calendar-task-card.completed {
+      background: #faf8fc;
+      opacity: .78
+    }
+
+    .calendar-task-card.overdue {
+      border-color: #edb7c8;
+      background: #fff6f8
+    }
+
+    .calendar-task-card input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      margin: 2px 0 0;
+      accent-color: #a46fa3;
+      cursor: pointer
+    }
+
+    .calendar-task-copy {
+      min-width: 0
+    }
+
+    .calendar-task-copy strong,
+    .calendar-task-copy p,
+    .calendar-task-copy small {
+      overflow-wrap: anywhere
+    }
+
+    .calendar-task-copy strong {
+      display: block;
+      color: #4e4156;
+      font-size: 13px;
+      line-height: 1.28
+    }
+
+    .calendar-task-copy p {
+      margin: 4px 0 0;
+      color: #77697d;
+      font-size: 11.5px;
+      line-height: 1.4
+    }
+
+    .calendar-task-copy small {
+      display: block;
+      margin-top: 5px;
+      color: #8a778e;
+      font-size: 10.5px
+    }
+
+    .calendar-task-copy .calendar-overdue-label {
+      color: #ae4f72;
+      font-weight: 750
+    }
+
+    .calendar-task-actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 5px
+    }
+
+    .calendar-task-actions .btn,
+    .calendar-controls .btn {
+      min-height: 0;
+      padding: 6px 8px;
+      font-size: 10.5px;
+      line-height: 1.2
+    }
+
+    .calendar-due-editor {
+      grid-column: 2 / -1;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto auto;
+      gap: 7px;
+      align-items: end;
+      margin-top: 2px;
+      padding-top: 8px;
+      border-top: 1px dashed #e4d8e9
+    }
+
+    .calendar-due-editor .field {
+      gap: 4px
+    }
+
+    .calendar-due-editor label {
+      font-size: 10.5px
+    }
+
+    .calendar-due-editor input,
+    .calendar-due-editor select {
+      min-width: 0;
+      padding: 7px 8px;
+      font-size: 11px
+    }
+
+    .calendar-todo-form {
+      margin-top: 16px
+    }
+
+    .calendar-todo-form .form-grid {
+      margin-top: 10px
+    }
+
+    .calendar-notice {
+      margin: 10px 0 0;
+      font-size: 11.5px
+    }
+
+    @media (max-width: 900px) {
+      .calendar-layout {
+        grid-template-columns: minmax(0, 1fr)
+      }
+    }
+
+    @media (max-width: 640px) {
+      .calendar-controls .calendar-week-label {
+        order: -1;
+        flex-basis: 100%
+      }
+
+      .week-calendar-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        border-radius: 14px
+      }
+
+      .calendar-day {
+        min-height: 0;
+        padding: 10px;
+        border-right: 0;
+        border-bottom: 1px solid #eee5f2
+      }
+
+      .calendar-day:last-child {
+        border-bottom: 0
+      }
+
+      .calendar-day-items {
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 175px), 1fr))
+      }
+
+      .calendar-due-editor {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr)
+      }
+    }
+
+    @media (max-width: 420px) {
+      .calendar-controls .btn {
+        flex: 1 1 calc(50% - 6px)
+      }
+
+      .calendar-task-card {
+        grid-template-columns: auto minmax(0, 1fr)
+      }
+
+      .calendar-task-actions {
+        grid-column: 2;
+        justify-content: flex-start
+      }
+
+      .calendar-due-editor {
+        grid-column: 1 / -1;
+        grid-template-columns: minmax(0, 1fr)
+      }
+
+      .calendar-due-editor .btn {
+        width: 100%
+      }
+    }
   </style>
 </head>
 
@@ -2729,6 +3062,7 @@
         <a href="#home" data-nav="home"><span class="nav-icon" aria-hidden="true">✦</span>Overview</a>
         <a href="#schools" data-nav="schools"><span class="nav-icon" aria-hidden="true">▦</span>Schools & courses</a>
         <a href="#clubs" data-nav="clubs"><span class="nav-icon" aria-hidden="true">♡</span>Clubs & societies</a>
+        <a href="#calendar" data-nav="calendar"><span class="nav-icon" aria-hidden="true">◷</span>Calendar &amp; To-do</a>
         <a href="#reading" data-nav="reading"><span class="nav-icon" aria-hidden="true">▤</span>Reading programme</a>
         <a href="#research" data-nav="research"><span class="nav-icon" aria-hidden="true">✧</span>Independent research</a>
         <a href="#profile" data-nav="profile"><span class="nav-icon" aria-hidden="true">◌</span>My profile</a>
@@ -3305,6 +3639,8 @@
       if (overview) { overview.href = admin ? '#admin' : '#home'; overview.lastChild.textContent = admin ? 'Administrator overview' : 'Overview'; }
       const profileNavigation = document.querySelector('[data-nav="profile"]');
       if (profileNavigation) profileNavigation.hidden = admin;
+      const calendarNavigation = document.querySelector('[data-nav="calendar"]');
+      if (calendarNavigation) calendarNavigation.hidden = admin;
       if (profileLink) profileLink.hidden = admin;
       const notifications = document.getElementById('admin-notifications');
       if (notifications) notifications.hidden = !admin;
@@ -5503,7 +5839,7 @@
     }
     function isValidSkillsRoute(route, role) {
       if (!route || !route.startsWith('#')) return false;
-      const studentRoute = /^#(?:home|schools|school\/[^/]+|courses\/[^/]+|course\/[^/]+|final\/[^/]+|clubs|club\/[^/]+|reading(?:\/[^/]+)?|research(?:\/[^/]+)?|profile|book\/[^/]+|graduation|grades|grade\/(?:view|research|review|final|commitment)\|[^/]+)$/;
+      const studentRoute = /^#(?:home|schools|school\/[^/]+|courses\/[^/]+|course\/[^/]+|final\/[^/]+|clubs|club\/[^/]+|calendar|reading(?:\/[^/]+)?|research(?:\/[^/]+)?|profile|book\/[^/]+|graduation|grades|grade\/(?:view|research|review|final|commitment)\|[^/]+)$/;
       const adminRoute = /^#(?:admin|schools|school\/[^/]+|clubs|club\/[^/]+|reading(?:\/[^/]+)?|research(?:\/[^/]+)?|graduation|grades|book\/[^/]+|course\/[^/]+|final\/[^/]+|grade\/(?:research|review|final|commitment)\|[^/]+|admin-school-new|admin-school-edit\/[^/]+|admin-course-new(?:\/[^/]+)?|admin-course-edit\/[^/]+|admin-club-new|admin-club-edit\/[^/]+)$/;
       return (role === 'admin' ? adminRoute : studentRoute).test(route) && isKnownSkillsEntity(route);
     }
@@ -5540,6 +5876,407 @@
         if (fallback !== location.hash) { location.hash = fallback; return; }
       }
       renderBeforeSkillsRouteValidation();
+    };
+
+    /* Calendar & To-do: course completion stays in course_week_progress; this state only
+       holds server-backed due preferences and student-owned personal to-dos. */
+    const calendarTodoState = {
+      userId: null,
+      ready: false,
+      pending: null,
+      error: null,
+      todos: [],
+      lessonDueByKey: {},
+      weekStart: null,
+      showTodoForm: false,
+      editingTodoId: null,
+      todoDraft: null,
+      editingLessonKey: null,
+      lessonDueDraft: null
+    };
+    function clearCalendarTodoState() {
+      Object.assign(calendarTodoState, {
+        userId: null,
+        ready: false,
+        pending: null,
+        error: null,
+        todos: [],
+        lessonDueByKey: {},
+        weekStart: null,
+        showTodoForm: false,
+        editingTodoId: null,
+        todoDraft: null,
+        editingLessonKey: null,
+        lessonDueDraft: null
+      });
+    }
+    function calendarDateKey(date) { return isoDate(date); }
+    function calendarDateFromKey(key) {
+      const value = String(key || '');
+      if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return new Date(value + 'T12:00:00');
+      const parsed = new Date(value);
+      return Number.isNaN(parsed.getTime()) ? null : new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
+    }
+    function calendarWeekStartFor(date = new Date()) {
+      const local = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      local.setDate(local.getDate() - ((local.getDay() + 6) % 7));
+      return local;
+    }
+    function calendarCurrentWeekStart() { return calendarWeekStartFor(new Date()); }
+    function calendarSelectedWeekStart() {
+      if (!calendarTodoState.weekStart) calendarTodoState.weekStart = calendarCurrentWeekStart();
+      return new Date(calendarTodoState.weekStart.getFullYear(), calendarTodoState.weekStart.getMonth(), calendarTodoState.weekStart.getDate());
+    }
+    function calendarAddDays(date, days) {
+      const next = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      next.setDate(next.getDate() + days);
+      return next;
+    }
+    function calendarWeekDates() {
+      const start = calendarSelectedWeekStart();
+      return Array.from({ length: 7 }, (_, index) => calendarAddDays(start, index));
+    }
+    function calendarWeekContains(key) {
+      const parsed = calendarDateFromKey(key), start = calendarSelectedWeekStart();
+      if (!parsed) return false;
+      const end = calendarAddDays(start, 6);
+      return parsed >= start && parsed <= end;
+    }
+    function calendarViewingCurrentWeek() { return calendarDateKey(calendarSelectedWeekStart()) === calendarDateKey(calendarCurrentWeekStart()); }
+    function calendarLessonDueKey(enrollmentId, weekNumber) { return String(enrollmentId) + '|' + Number(weekNumber); }
+    function calendarLessonDueFor(enrollmentId, weekNumber) { return calendarTodoState.lessonDueByKey[calendarLessonDueKey(enrollmentId, weekNumber)] || { dueType: 'week', dueDate: null }; }
+    function calendarDisplayDate(key, options = { day: 'numeric', month: 'short' }) {
+      const date = calendarDateFromKey(key);
+      return date ? date.toLocaleDateString(undefined, options) : 'date unavailable';
+    }
+    function calendarCourseLabel(course) { return (course.code ? course.code + ' · ' : '') + (course.title || 'Course'); }
+    function calendarIsSpecificOverdue(dueType, dueDate, completed = false) { return !completed && dueType === 'date' && !!dueDate && dueDate < calendarDateKey(new Date()); }
+    function calendarDueLabel(dueType, dueDate, completed = false) {
+      if (calendarIsSpecificOverdue(dueType, dueDate, completed)) return 'Overdue · ' + calendarDisplayDate(dueDate);
+      return dueType === 'date' && dueDate ? 'Due ' + calendarDisplayDate(dueDate) : 'Due this week';
+    }
+    function calendarLessonDetails(course, weekNumber) {
+      const section = (course.syllabus || []).find(item => {
+        const start = Number(item.startWeek) || 1, duration = Math.max(1, Number(item.durationWeeks) || 1);
+        return Number(weekNumber) >= start && Number(weekNumber) < start + duration;
+      });
+      return {
+        title: section?.title || 'Week ' + weekNumber + ' lesson',
+        description: section?.taskDescription || '',
+        resource: section?.resourceLink || ''
+      };
+    }
+    function calendarActiveLessons() {
+      return courses.flatMap(course => {
+        const enrollment = state.courses[course.id];
+        if (!enrollment?.enrollmentId) return [];
+        const index = (enrollment.weeks || []).findIndex(done => done !== true);
+        if (index < 0) return [];
+        const weekNumber = index + 1, details = calendarLessonDetails(course, weekNumber), due = calendarLessonDueFor(enrollment.enrollmentId, weekNumber);
+        return [{
+          kind: 'lesson',
+          key: calendarLessonDueKey(enrollment.enrollmentId, weekNumber),
+          course,
+          enrollmentId: enrollment.enrollmentId,
+          weekNumber,
+          title: details.title,
+          description: details.description,
+          resource: details.resource,
+          dueType: due.dueType,
+          dueDate: due.dueDate
+        }];
+      });
+    }
+    function calendarClubSessionEvents() {
+      const events = [], dates = calendarWeekDates();
+      clubs.forEach(club => {
+        const membership = clubMembershipState.byClubId[String(club.id)];
+        if (!membership) return;
+        const selectedDays = clubAttendanceState.preferencesByMembership[String(membership.id)] || [];
+        const records = clubAttendanceState.recordsByMembership[String(membership.id)] || {};
+        selectedDays.forEach(weekday => {
+          const offset = (Number(weekday) + 6) % 7, date = dates[offset];
+          if (!date) return;
+          const dateKey = calendarDateKey(date), hasRecord = Object.prototype.hasOwnProperty.call(records, dateKey);
+          const duration = formatSessionDuration(club.sessionDurationMinutes);
+          const attendance = hasRecord ? (records[dateKey] ? 'Attended' : 'Attendance recorded') : dateKey > calendarDateKey(new Date()) ? 'Upcoming' : 'No attendance recorded';
+          events.push({ date: dateKey, type: 'session', clubId: club.id, title: club.name || 'Club', detail: 'Club session' + (duration ? ' · ' + duration : '') + ' · ' + attendance, attendance });
+        });
+      });
+      return events;
+    }
+    function calendarClubCommitmentEvents() {
+      return clubCommitmentInstanceState.items.flatMap(instance => {
+        const dateKey = calendarDateKey(instance.dueAt ? (calendarDateFromKey(instance.dueAt) || new Date(instance.periodEnd + 'T12:00:00')) : new Date(instance.periodEnd + 'T12:00:00'));
+        if (!calendarWeekContains(dateKey)) return [];
+        const club = clubs.find(item => String(item.id) === String(instance.clubId));
+        const definition = clubCommitmentDefinition(instance.commitmentDefinitionId);
+        const submitted = clubCommitmentSubmissionState.items.some(item => String(item.commitmentInstanceId) === String(instance.instanceId));
+        return [{ date: dateKey, type: 'commitment', clubId: instance.clubId, title: club?.name || 'Club', detail: (definition?.name || 'Club commitment') + (submitted ? ' · Submitted' : ' · Due'), submitted }];
+      });
+    }
+    async function loadCalendarTodoData(force = false) {
+      const userId = authState.user?.id;
+      if (!userId || state.role !== 'student') return;
+      if (calendarTodoState.userId === userId && calendarTodoState.pending) return calendarTodoState.pending;
+      if (calendarTodoState.userId === userId && calendarTodoState.ready && !force) return;
+      Object.assign(calendarTodoState, { userId, ready: false, error: null, todos: [], lessonDueByKey: {} });
+      const request = (async () => {
+        const enrollmentIds = Object.values(state.courses).map(item => item?.enrollmentId).filter(Boolean);
+        const todoQuery = openfieldSupabase.from('student_todos').select('id,student_id,title,notes,due_type,due_date,completed,completed_at,created_at,updated_at').eq('student_id', userId).order('updated_at', { ascending: false });
+        const dueQuery = enrollmentIds.length
+          ? openfieldSupabase.from('course_lesson_due_dates').select('id,enrollment_id,week_number,due_type,due_date,updated_at').in('enrollment_id', enrollmentIds)
+          : Promise.resolve({ data: [], error: null });
+        const [todoResult, dueResult] = await Promise.all([todoQuery, dueQuery]);
+        if (todoResult.error) throw todoResult.error;
+        if (dueResult.error) throw dueResult.error;
+        if (authState.user?.id !== userId || state.role !== 'student') return;
+        const lessonDueByKey = {};
+        (dueResult.data || []).forEach(row => {
+          lessonDueByKey[calendarLessonDueKey(row.enrollment_id, row.week_number)] = { id: row.id, dueType: row.due_type === 'date' ? 'date' : 'week', dueDate: row.due_date || null };
+        });
+        Object.assign(calendarTodoState, {
+          todos: (todoResult.data || []).map(row => ({ ...row, dueType: row.due_type === 'date' ? 'date' : 'week', dueDate: row.due_date || null, completed: row.completed === true })),
+          lessonDueByKey,
+          ready: true
+        });
+      })().catch(error => { if (calendarTodoState.userId === userId) calendarTodoState.error = error; throw error; }).finally(() => { if (calendarTodoState.pending === request) calendarTodoState.pending = null; });
+      calendarTodoState.pending = request;
+      return request;
+    }
+    async function saveCalendarLessonDue(courseId, weekNumber, dueType, dueDate) {
+      const enrollment = requireCourseEnrollment(courseId), normalizedType = dueType === 'date' ? 'date' : 'week', normalizedDate = normalizedType === 'date' ? String(dueDate || '') : null;
+      if (normalizedType === 'date' && !/^\d{4}-\d{2}-\d{2}$/.test(normalizedDate)) throw new Error('Choose a valid due date.');
+      const { data, error } = await openfieldSupabase.from('course_lesson_due_dates').upsert({ enrollment_id: enrollment.enrollmentId, week_number: Number(weekNumber), due_type: normalizedType, due_date: normalizedDate }, { onConflict: 'enrollment_id,week_number' }).select('id,enrollment_id,week_number,due_type,due_date,updated_at').single();
+      if (error) throw error;
+      calendarTodoState.lessonDueByKey[calendarLessonDueKey(enrollment.enrollmentId, weekNumber)] = { id: data.id, dueType: data.due_type === 'date' ? 'date' : 'week', dueDate: data.due_date || null };
+    }
+    async function setCalendarLessonCompleted(courseId, weekNumber, completed) {
+      await setCourseWeek(courseId, Number(weekNumber) - 1, completed);
+    }
+    function calendarTodoValues(form) {
+      const data = new FormData(form), dueType = data.get('dueType') === 'date' ? 'date' : 'week', dueDate = dueType === 'date' ? String(data.get('dueDate') || '') : null;
+      const values = { title: String(data.get('title') || '').trim(), notes: String(data.get('notes') || '').trim(), dueType, dueDate };
+      if (!values.title) throw new Error('Enter a to-do title.');
+      if (values.dueType === 'date' && !/^\d{4}-\d{2}-\d{2}$/.test(values.dueDate)) throw new Error('Choose a valid due date.');
+      return values;
+    }
+    async function saveCalendarTodo(form) {
+      const userId = authState.user?.id;
+      if (!userId || state.role !== 'student') throw new Error('Sign in as a Student to save a to-do.');
+      const values = calendarTodoValues(form), existingId = form.dataset.todoId || '';
+      const payload = { title: values.title, notes: values.notes, due_type: values.dueType, due_date: values.dueDate };
+      const result = existingId
+        ? await openfieldSupabase.from('student_todos').update(payload).eq('id', existingId).eq('student_id', userId).select('id,student_id,title,notes,due_type,due_date,completed,completed_at,created_at,updated_at').single()
+        : await openfieldSupabase.from('student_todos').insert({ student_id: userId, ...payload }).select('id,student_id,title,notes,due_type,due_date,completed,completed_at,created_at,updated_at').single();
+      if (result.error) throw result.error;
+      const saved = { ...result.data, dueType: result.data.due_type === 'date' ? 'date' : 'week', dueDate: result.data.due_date || null, completed: result.data.completed === true };
+      const index = calendarTodoState.todos.findIndex(item => String(item.id) === String(saved.id));
+      if (index >= 0) calendarTodoState.todos[index] = saved;
+      else calendarTodoState.todos.unshift(saved);
+      calendarTodoState.showTodoForm = false;
+      calendarTodoState.editingTodoId = null;
+      calendarTodoState.todoDraft = null;
+    }
+    async function setCalendarTodoCompleted(todoId, completed) {
+      const userId = authState.user?.id, completedAt = completed ? new Date().toISOString() : null;
+      if (!userId) throw new Error('Sign in to update a to-do.');
+      const { data, error } = await openfieldSupabase.from('student_todos').update({ completed, completed_at: completedAt }).eq('id', todoId).eq('student_id', userId).select('id,student_id,title,notes,due_type,due_date,completed,completed_at,created_at,updated_at').single();
+      if (error) throw error;
+      const index = calendarTodoState.todos.findIndex(item => String(item.id) === String(todoId));
+      if (index >= 0) calendarTodoState.todos[index] = { ...data, dueType: data.due_type === 'date' ? 'date' : 'week', dueDate: data.due_date || null, completed: data.completed === true };
+    }
+    async function deleteCalendarTodo(todoId) {
+      const userId = authState.user?.id;
+      if (!userId) throw new Error('Sign in to delete a to-do.');
+      const { error } = await openfieldSupabase.from('student_todos').delete().eq('id', todoId).eq('student_id', userId);
+      if (error) throw error;
+      calendarTodoState.todos = calendarTodoState.todos.filter(item => String(item.id) !== String(todoId));
+      if (String(calendarTodoState.editingTodoId) === String(todoId)) { calendarTodoState.editingTodoId = null; calendarTodoState.todoDraft = null; calendarTodoState.showTodoForm = false; }
+    }
+    function calendarLessonDueEditor(lesson) {
+      const current = calendarTodoState.lessonDueDraft?.key === lesson.key ? calendarTodoState.lessonDueDraft : lesson;
+      const dateVisible = current.dueType === 'date';
+      return '<form class="calendar-due-editor" data-form="calendar-lesson-due" data-course-id="' + esc(lesson.course.id) + '" data-week-number="' + lesson.weekNumber + '" data-lesson-key="' + esc(lesson.key) + '"><div class="field"><label>Due</label><select name="dueType" data-calendar-due-type><option value="week" ' + (current.dueType !== 'date' ? 'selected' : '') + '>This week</option><option value="date" ' + (current.dueType === 'date' ? 'selected' : '') + '>Specific date</option></select></div><div class="field" data-calendar-date-field ' + (dateVisible ? '' : 'hidden') + '><label>Due date</label><input name="dueDate" type="date" value="' + esc(current.dueDate || '') + '"></div><button class="btn outline" type="button" data-calendar-cancel-lesson-due>Cancel</button><button class="btn" type="submit">Save</button></form>';
+    }
+    function calendarLessonCard(lesson) {
+      const overdue = calendarIsSpecificOverdue(lesson.dueType, lesson.dueDate), editing = calendarTodoState.editingLessonKey === lesson.key;
+      const resource = lesson.resource ? (isWebUrl(lesson.resource) ? '<small><a href="' + esc(lesson.resource) + '" target="_blank" rel="noreferrer">Open lesson resource ↗</a></small>' : '<small>' + esc(lesson.resource) + '</small>') : '';
+      return '<article class="calendar-task-card ' + (overdue ? 'overdue' : '') + '"><input type="checkbox" data-calendar-lesson-complete data-course-id="' + esc(lesson.course.id) + '" data-week-number="' + lesson.weekNumber + '" aria-label="Mark ' + esc(calendarCourseLabel(lesson.course)) + ' week ' + lesson.weekNumber + ' complete"><div class="calendar-task-copy"><strong>' + esc(calendarCourseLabel(lesson.course)) + ' — Week ' + lesson.weekNumber + '</strong><p>' + esc(lesson.title) + '</p>' + (lesson.description ? '<p>' + esc(lesson.description) + '</p>' : '') + resource + '<small class="' + (overdue ? 'calendar-overdue-label' : '') + '">' + esc(calendarDueLabel(lesson.dueType, lesson.dueDate)) + '</small></div><div class="calendar-task-actions"><button class="btn outline" type="button" data-calendar-edit-lesson-due="' + esc(lesson.key) + '">Due date</button><a class="btn outline" href="#course/' + encodeURIComponent(lesson.course.id) + '">Course</a></div>' + (editing ? calendarLessonDueEditor(lesson) : '') + '</article>';
+    }
+    function calendarTodoCard(todo) {
+      const overdue = calendarIsSpecificOverdue(todo.dueType, todo.dueDate, todo.completed);
+      return '<article class="calendar-task-card ' + (todo.completed ? 'completed ' : '') + (overdue ? 'overdue' : '') + '"><input type="checkbox" data-calendar-todo-complete="' + esc(todo.id) + '" ' + (todo.completed ? 'checked ' : '') + 'aria-label="' + (todo.completed ? 'Reopen ' : 'Complete ') + esc(todo.title) + '"><div class="calendar-task-copy"><strong>' + esc(todo.title) + '</strong>' + (todo.notes ? '<p>' + esc(todo.notes) + '</p>' : '') + '<small class="' + (overdue ? 'calendar-overdue-label' : '') + '">' + esc(todo.completed ? 'Completed' : calendarDueLabel(todo.dueType, todo.dueDate)) + '</small></div><div class="calendar-task-actions"><button class="btn outline" type="button" data-calendar-edit-todo="' + esc(todo.id) + '">Edit</button><button class="btn outline" type="button" data-calendar-delete-todo="' + esc(todo.id) + '">Delete</button></div></article>';
+    }
+    function calendarTodoForm() {
+      if (!calendarTodoState.showTodoForm) return '';
+      const existing = calendarTodoState.todos.find(item => String(item.id) === String(calendarTodoState.editingTodoId));
+      const draft = calendarTodoState.todoDraft || (existing ? { title: existing.title, notes: existing.notes, dueType: existing.dueType, dueDate: existing.dueDate } : { title: '', notes: '', dueType: 'week', dueDate: '' });
+      const dateVisible = draft.dueType === 'date';
+      return '<section class="panel calendar-todo-form"><div class="section-head" style="margin-top:0"><div><h2>' + (existing ? 'Edit to-do' : 'Add to-do') + '</h2><p class="sub">Saved to your Student account.</p></div></div><form class="form-grid" data-form="calendar-todo" data-todo-id="' + esc(existing?.id || '') + '"><div class="field full"><label>Task title</label><input name="title" maxlength="500" required value="' + esc(draft.title || '') + '" placeholder="What would you like to do?"></div><div class="field full"><label>Notes <span class="sub">(optional)</span></label><textarea name="notes" maxlength="5000" placeholder="A helpful detail or reminder">' + esc(draft.notes || '') + '</textarea></div><div class="field"><label>Due date</label><select name="dueType" data-calendar-due-type><option value="week" ' + (draft.dueType !== 'date' ? 'selected' : '') + '>This week</option><option value="date" ' + (draft.dueType === 'date' ? 'selected' : '') + '>Specific date</option></select></div><div class="field" data-calendar-date-field ' + (dateVisible ? '' : 'hidden') + '><label>Specific date</label><input name="dueDate" type="date" value="' + esc(draft.dueDate || '') + '"></div><div class="full"><button class="btn" type="submit">' + (existing ? 'Save changes' : 'Add to-do') + '</button><button class="btn outline" type="button" data-calendar-cancel-todo>Cancel</button></div></form></section>';
+    }
+    function calendarDayEvent(event) {
+      if (event.type === 'lesson' || event.type === 'todo') return '<span class="calendar-event task"><strong>' + esc(event.title) + '</strong><small>' + esc(event.detail) + '</small></span>';
+      return '<a class="calendar-event commitment" href="#club/' + encodeURIComponent(event.clubId) + '"><strong>' + esc(event.title) + '</strong><small>' + esc(event.detail) + '</small></a>';
+    }
+    function calendarWeekGrid(lessons, todos, clubEvents) {
+      const eventByDate = {};
+      [...clubEvents, ...lessons.filter(item => item.dueType === 'date').map(item => ({ date: item.dueDate, type: 'lesson', title: calendarCourseLabel(item.course) + ' — Week ' + item.weekNumber, detail: item.title })), ...todos.filter(item => item.dueType === 'date').map(item => ({ date: item.dueDate, type: 'todo', title: item.title, detail: 'Personal to-do' }))].forEach(item => { if (item.date && calendarWeekContains(item.date)) (eventByDate[item.date] ||= []).push(item); });
+      const today = calendarDateKey(new Date());
+      return '<section class="week-calendar"><div class="section-head" style="margin-top:0"><div><h2>Week at a glance</h2><p class="sub">Specific dates, Club sessions, and existing Club commitments.</p></div></div><div class="week-calendar-grid">' + calendarWeekDates().map(date => {
+        const key = calendarDateKey(date), events = eventByDate[key] || [];
+        return '<section class="calendar-day ' + (key === today ? 'is-today' : '') + '"><div class="calendar-day-heading"><span>' + esc(date.toLocaleDateString(undefined, { weekday: 'short' })) + '</span><time datetime="' + key + '">' + date.getDate() + '</time></div><div class="calendar-day-items">' + (events.length ? events.map(calendarDayEvent).join('') : '<span class="calendar-empty">Nothing scheduled</span>') + '</div></section>';
+      }).join('') + '</div></section>';
+    }
+    function calendarClubAgenda(clubEvents) {
+      return clubEvents.length ? clubEvents.sort((a, b) => a.date.localeCompare(b.date) || a.title.localeCompare(b.title)).map(event => '<a class="calendar-event commitment" href="#club/' + encodeURIComponent(event.clubId) + '"><strong>' + esc(calendarDisplayDate(event.date, { weekday: 'long', day: 'numeric', month: 'short' })) + ' · ' + esc(event.title) + '</strong><small>' + esc(event.detail) + '</small></a>').join('') : '<p class="sub">No Club sessions or commitments in this selected week.</p>';
+    }
+    function calendarPage() {
+      const lessons = calendarActiveLessons(), todos = calendarTodoState.todos.slice(), clubEvents = [...calendarClubSessionEvents(), ...calendarClubCommitmentEvents()];
+      const weeklyLessons = calendarViewingCurrentWeek() ? lessons.filter(item => item.dueType !== 'date') : [];
+      const weeklyTodos = calendarViewingCurrentWeek() ? todos.filter(item => !item.completed && item.dueType !== 'date') : [];
+      const datedLessons = lessons.filter(item => item.dueType === 'date' && calendarWeekContains(item.dueDate));
+      const datedTodos = todos.filter(item => !item.completed && item.dueType === 'date' && calendarWeekContains(item.dueDate));
+      const overdueLessons = lessons.filter(item => calendarIsSpecificOverdue(item.dueType, item.dueDate));
+      const overdueTodos = todos.filter(item => calendarIsSpecificOverdue(item.dueType, item.dueDate, item.completed));
+      const completedTodos = todos.filter(item => item.completed && (item.dueType !== 'date' ? calendarViewingCurrentWeek() : calendarWeekContains(item.dueDate))).slice(0, 8);
+      const selectedLessons = [...new Set([...weeklyLessons, ...datedLessons, ...overdueLessons])];
+      const selectedTodos = [...new Set([...weeklyTodos, ...datedTodos, ...overdueTodos])];
+      const activeCards = selectedLessons.map(calendarLessonCard).concat(selectedTodos.map(calendarTodoCard));
+      const outsideSelectedCards = lessons.filter(item => !selectedLessons.includes(item)).map(calendarLessonCard).concat(todos.filter(item => !item.completed && !selectedTodos.includes(item)).map(calendarTodoCard));
+      const start = calendarSelectedWeekStart(), end = calendarAddDays(start, 6), range = calendarDisplayDate(calendarDateKey(start), { day: 'numeric', month: 'short' }) + ' – ' + calendarDisplayDate(calendarDateKey(end), { day: 'numeric', month: 'short', year: start.getFullYear() !== end.getFullYear() ? 'numeric' : undefined });
+      return heading('Calendar & To-do', 'Make space for what matters.', 'Your next course lesson, personal to-dos, and existing Club schedule in one view.') + '<div class="calendar-controls"><button class="btn outline" type="button" data-calendar-week="previous">← Previous week</button><span class="calendar-week-label">' + esc(range) + '</span><button class="btn outline" type="button" data-calendar-week="today">Today</button><button class="btn outline" type="button" data-calendar-week="next">Next week →</button></div><div class="calendar-layout"><section class="panel">' + calendarWeekGrid(lessons, todos.filter(item => !item.completed), clubEvents) + '</section><aside class="calendar-agenda"><section class="panel"><div class="section-head" style="margin-top:0"><div><h2>To-do</h2><p class="sub">Ticking a course lesson unlocks its next incomplete week.</p></div><button class="btn outline" type="button" data-calendar-add-todo>+ Add to-do</button></div><h3 class="calendar-section-title">' + (calendarViewingCurrentWeek() ? 'This week' : 'Selected week') + '</h3><div class="calendar-agenda-list">' + (activeCards.length ? activeCards.join('') : '<p class="sub">No active to-dos for this selected week.</p>') + '</div>' + (outsideSelectedCards.length ? '<h3 class="calendar-section-title">Upcoming</h3><div class="calendar-agenda-list">' + outsideSelectedCards.join('') + '</div>' : '') + '<h3 class="calendar-section-title">Club commitments</h3><div class="calendar-agenda-list">' + calendarClubAgenda(clubEvents) + '</div>' + (completedTodos.length ? '<h3 class="calendar-section-title">Completed</h3><div class="calendar-agenda-list">' + completedTodos.map(calendarTodoCard).join('') + '</div>' : '') + '</section>' + calendarTodoForm() + '</aside></div><footer><span>PERSONAL TRACKER · A place for curious minds</span><span>Calendar items save to your Student account</span></footer>';
+    }
+    function calendarSetShell() {
+      document.querySelectorAll('[data-nav]').forEach(link => {
+        const active = link.dataset.nav === 'calendar';
+        link.classList.toggle('active', active);
+        if (active) link.setAttribute('aria-current', 'page'); else link.removeAttribute('aria-current');
+      });
+      document.getElementById('breadcrumb').textContent = 'Personal Tracker / Calendar & To-do';
+      document.title = 'Calendar & To-do — Personal Tracker';
+      document.getElementById('role-label').textContent = 'Student view';
+    }
+    function calendarLoading(message) { app.innerHTML = '<section class="panel"><h2>Loading Calendar & To-do</h2><p class="sub">' + esc(message) + '</p></section>'; }
+    function calendarErrorMessage(error) {
+      if (error?.code === '42P01' || error?.code === 'PGRST205') return 'Calendar storage is not available yet. Run the Calendar & To-do migration in Supabase, then refresh this page.';
+      return error?.message || 'Please refresh and try again.';
+    }
+    const applyProfileBeforeCalendarTodo = applyAuthenticatedProfile;
+    applyAuthenticatedProfile = function (user, profile) {
+      if (calendarTodoState.userId !== user.id || profile.role !== 'student') clearCalendarTodoState();
+      applyProfileBeforeCalendarTodo(user, profile);
+    };
+    document.addEventListener('click', event => {
+      const weekButton = event.target.closest('[data-calendar-week]'), addTodo = event.target.closest('[data-calendar-add-todo]'), cancelTodo = event.target.closest('[data-calendar-cancel-todo]'), editTodo = event.target.closest('[data-calendar-edit-todo]'), deleteTodo = event.target.closest('[data-calendar-delete-todo]'), editLesson = event.target.closest('[data-calendar-edit-lesson-due]'), cancelLesson = event.target.closest('[data-calendar-cancel-lesson-due]');
+      if (!weekButton && !addTodo && !cancelTodo && !editTodo && !deleteTodo && !editLesson && !cancelLesson) return;
+      if (state.role !== 'student' || location.hash !== '#calendar') return;
+      event.preventDefault(); event.stopImmediatePropagation();
+      if (weekButton) {
+        const current = calendarSelectedWeekStart();
+        calendarTodoState.weekStart = weekButton.dataset.calendarWeek === 'today' ? calendarCurrentWeekStart() : calendarAddDays(current, weekButton.dataset.calendarWeek === 'previous' ? -7 : 7);
+        render();
+      } else if (addTodo) {
+        calendarTodoState.showTodoForm = true; calendarTodoState.editingTodoId = null; calendarTodoState.todoDraft ||= { title: '', notes: '', dueType: 'week', dueDate: '' }; render();
+      } else if (cancelTodo) {
+        calendarTodoState.showTodoForm = false; calendarTodoState.editingTodoId = null; calendarTodoState.todoDraft = null; render();
+      } else if (editTodo) {
+        const todo = calendarTodoState.todos.find(item => String(item.id) === String(editTodo.dataset.calendarEditTodo));
+        if (!todo) return;
+        calendarTodoState.showTodoForm = true; calendarTodoState.editingTodoId = todo.id; calendarTodoState.todoDraft = { title: todo.title, notes: todo.notes, dueType: todo.dueType, dueDate: todo.dueDate || '' }; render();
+      } else if (deleteTodo) {
+        const todo = calendarTodoState.todos.find(item => String(item.id) === String(deleteTodo.dataset.calendarDeleteTodo));
+        if (!todo || !confirm('Delete “' + todo.title + '”?')) return;
+        deleteTodo.disabled = true;
+        deleteCalendarTodo(todo.id).then(() => { toast('To-do deleted.'); render(); }).catch(error => { console.error('[Calendar to-do]', error); toast('To-do could not be deleted: ' + (error.message || 'please try again.')); deleteTodo.disabled = false; });
+      } else if (editLesson) {
+        const lesson = calendarActiveLessons().find(item => item.key === editLesson.dataset.calendarEditLessonDue);
+        if (!lesson) return;
+        calendarTodoState.editingLessonKey = lesson.key; calendarTodoState.lessonDueDraft = { key: lesson.key, dueType: lesson.dueType, dueDate: lesson.dueDate || '' }; render();
+      } else if (cancelLesson) {
+        calendarTodoState.editingLessonKey = null; calendarTodoState.lessonDueDraft = null; render();
+      }
+    }, true);
+    document.addEventListener('change', event => {
+      const lessonCheckbox = event.target.closest('input[data-calendar-lesson-complete]'), todoCheckbox = event.target.closest('input[data-calendar-todo-complete]'), dueType = event.target.closest('[data-calendar-due-type]');
+      if (lessonCheckbox) {
+        if (state.role !== 'student' || location.hash !== '#calendar') return;
+        event.stopImmediatePropagation();
+        const checked = lessonCheckbox.checked; lessonCheckbox.disabled = true;
+        setCalendarLessonCompleted(lessonCheckbox.dataset.courseId, Number(lessonCheckbox.dataset.weekNumber), checked).then(() => { toast(checked ? 'Lesson completed. The next incomplete week is ready.' : 'Lesson reopened.'); render(); }).catch(error => { console.error('[Calendar lesson]', error); lessonCheckbox.checked = !checked; lessonCheckbox.disabled = false; toast('Lesson progress could not be saved: ' + (error.message || 'please try again.')); });
+        return;
+      }
+      if (todoCheckbox) {
+        if (state.role !== 'student' || location.hash !== '#calendar') return;
+        event.stopImmediatePropagation();
+        const checked = todoCheckbox.checked; todoCheckbox.disabled = true;
+        setCalendarTodoCompleted(todoCheckbox.dataset.calendarTodoComplete, checked).then(() => { toast(checked ? 'To-do completed.' : 'To-do reopened.'); render(); }).catch(error => { console.error('[Calendar to-do]', error); todoCheckbox.checked = !checked; todoCheckbox.disabled = false; toast('To-do could not be updated: ' + (error.message || 'please try again.')); });
+        return;
+      }
+      if (!dueType || location.hash !== '#calendar') return;
+      const form = dueType.closest('form');
+      form?.querySelector('[data-calendar-date-field]')?.toggleAttribute('hidden', dueType.value !== 'date');
+      if (form?.dataset.form === 'calendar-todo') {
+        calendarTodoState.todoDraft = { title: String(form.elements.title?.value || ''), notes: String(form.elements.notes?.value || ''), dueType: dueType.value === 'date' ? 'date' : 'week', dueDate: String(form.elements.dueDate?.value || '') };
+      } else if (form?.dataset.form === 'calendar-lesson-due') {
+        calendarTodoState.lessonDueDraft = { key: form.dataset.lessonKey, dueType: dueType.value === 'date' ? 'date' : 'week', dueDate: String(form.elements.dueDate?.value || '') };
+      }
+    }, true);
+    document.addEventListener('input', event => {
+      const form = event.target.closest('form[data-form="calendar-todo"], form[data-form="calendar-lesson-due"]');
+      if (!form || location.hash !== '#calendar') return;
+      if (form.dataset.form === 'calendar-todo') calendarTodoState.todoDraft = { title: String(form.elements.title?.value || ''), notes: String(form.elements.notes?.value || ''), dueType: form.elements.dueType?.value === 'date' ? 'date' : 'week', dueDate: String(form.elements.dueDate?.value || '') };
+      else calendarTodoState.lessonDueDraft = { key: form.dataset.lessonKey, dueType: form.elements.dueType?.value === 'date' ? 'date' : 'week', dueDate: String(form.elements.dueDate?.value || '') };
+    }, true);
+    document.addEventListener('submit', event => {
+      const todoForm = event.target.closest('form[data-form="calendar-todo"]'), lessonForm = event.target.closest('form[data-form="calendar-lesson-due"]');
+      if (!todoForm && !lessonForm) return;
+      event.preventDefault(); event.stopImmediatePropagation();
+      const form = todoForm || lessonForm, button = form.querySelector('button[type="submit"]');
+      if (button) button.disabled = true;
+      const operation = todoForm
+        ? saveCalendarTodo(todoForm)
+        : saveCalendarLessonDue(lessonForm.dataset.courseId, Number(lessonForm.dataset.weekNumber), String(new FormData(lessonForm).get('dueType') || 'week'), String(new FormData(lessonForm).get('dueDate') || ''));
+      operation.then(() => {
+        if (lessonForm) { calendarTodoState.editingLessonKey = null; calendarTodoState.lessonDueDraft = null; }
+        toast(todoForm ? 'To-do saved.' : 'Lesson due date saved.'); render();
+      }).catch(error => { console.error('[Calendar]', error); toast((todoForm ? 'To-do' : 'Lesson due date') + ' could not be saved: ' + (error.message || 'please try again.')); if (button) button.disabled = false; });
+    }, true);
+    const renderBeforeCalendarTodo = render;
+    render = function () {
+      if (location.hash !== '#calendar') { renderBeforeCalendarTodo(); return; }
+      if (!authState.user || state.role !== 'student') { location.hash = '#home'; return; }
+      calendarSetShell();
+      if (!catalogue.ready || catalogue.userId !== authState.user.id) {
+        calendarLoading('Loading your course and Club catalogue…');
+        if (!catalogue.pending) loadCatalogue().then(() => render()).catch(error => { console.error('[Calendar catalogue]', error); calendarLoading(error.message || 'Course catalogue unavailable.'); });
+        return;
+      }
+      if (!studentCourseProgress.ready || studentCourseProgress.userId !== authState.user.id) {
+        calendarLoading('Loading your enrolled courses and completed lessons…');
+        if (!studentCourseProgress.pending) loadStudentCourseProgress().then(() => render()).catch(error => { console.error('[Calendar course progress]', error); calendarLoading(error.message || 'Course progress unavailable.'); });
+        return;
+      }
+      const clubScopeMatches = clubMembershipState.ready && clubMembershipState.studentId === authState.user.id && clubMembershipState.adminScope === false && clubCommitmentInstanceState.ready && clubCommitmentSubmissionState.ready;
+      if (!clubScopeMatches) {
+        calendarLoading('Loading your Club commitments and session schedule…');
+        if (!clubCommitmentLoadPromise) loadClubCommitmentServerState().then(() => render()).catch(error => { console.error('[Calendar clubs]', error); calendarLoading(error.message || 'Club schedule unavailable.'); });
+        return;
+      }
+      const attendanceScopeMatches = clubAttendanceState.ready && clubAttendanceState.accountId === authState.user.id && clubAttendanceState.adminScope === false;
+      if (!attendanceScopeMatches) {
+        calendarLoading('Loading attendance preferences and recorded sessions…');
+        if (!clubAttendanceState.pending) loadClubAttendance().then(() => render()).catch(error => { console.error('[Calendar attendance]', error); calendarLoading(error.message || 'Club attendance unavailable.'); });
+        return;
+      }
+      if (!calendarTodoState.ready || calendarTodoState.userId !== authState.user.id) {
+        const error = calendarTodoState.error;
+        if (error) { app.innerHTML = heading('Calendar & To-do', 'Calendar storage unavailable', calendarErrorMessage(error)) + '<section class="panel"><p class="sub">After the migration has been run, refresh this page to load your calendar.</p></section>'; return; }
+        calendarLoading('Loading your saved to-dos and lesson due dates…');
+        if (!calendarTodoState.pending) loadCalendarTodoData().then(() => render()).catch(error => { console.error('[Calendar storage]', error); render(); });
+        return;
+      }
+      app.innerHTML = calendarPage();
     };
 
     restoreSupabaseSession();
